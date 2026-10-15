@@ -18,7 +18,7 @@ assert.ok(html.includes("if (selected === 'keeper') return startTonPayment();"))
 function environment({initial=null,scenario='connect',scriptError=false,mobile=false}={}){
  const state={scripts:[],uis:[],openCalls:0,disconnects:0,scenario,scriptError};
  class FakeUi {
-  constructor(options){this.options=options;this.wallet=initial;this.connectionRestored=Promise.resolve(!!initial);this.status=[];this.modal=[];this.connector={sendTransaction:(transaction,options)=>{state.nativeTransaction=transaction;state.requestPosted=true;options.onRequestSent();return Promise.resolve({boc:'native-broadcast-only'});},connect:()=>{state.connectLinkCalls=(state.connectLinkCalls||0)+1;return 'https://app.tonkeeper.com/ton-connect?v=2&id='+ 'a'.repeat(64)+'&r='+encodeURIComponent(JSON.stringify({manifestUrl:manifest.url+'tonconnect-manifest.json',items:[{name:'ton_addr'}]}));}};state.uis.push(this);}
+  constructor(options){this.options=options;this.wallet=initial;this.connectionRestored=Promise.resolve(!!initial);this.status=[];this.modal=[];this.connector={sendTransaction:(transaction,options)=>{state.nativeTransaction=transaction;state.requestPosted=true;options.onRequestSent();return Promise.resolve({boc:'native-broadcast-only'});},connect:()=>{state.connectLinkCalls=(state.connectLinkCalls||0)+1;if(state.scenario==='malicious-link')return 'https://evil.invalid/ton-connect?v=2&id='+ 'a'.repeat(64)+'&r=x';return 'https://app.tonkeeper.com/ton-connect?v=2&id='+ 'a'.repeat(64)+'&r='+encodeURIComponent(JSON.stringify({manifestUrl:manifest.url+'tonconnect-manifest.json',items:[{name:'ton_addr'}]}));}};state.uis.push(this);}
   async getWallets(){return [{appName:'tonkeeper',universalLink:'https://app.tonkeeper.com/ton-connect',bridgeUrl:'https://bridge.tonapi.io/bridge'}];}
   setConnectionNetwork(network){this.network=network;}
   onStatusChange(callback,error){this.status.push({callback,error});return ()=>{};}
@@ -85,4 +85,5 @@ for(const scenario of ['testnet','invalid']){
 {
  const {api,state}=environment({mobile:true});const pending=api.connect();await new Promise(setImmediate);state.dialog.children.find(n=>n.tag==='button').events.click();await assert.rejects(pending,{name:'TonConnectionCancelled'});assert.equal(state.dialog.open,false);passed++;
 }
+{ const {api}=environment({mobile:true,scenario:'malicious-link'});await assert.rejects(api.connect(),/Некорректная ссылка/);passed++; }
 console.log(JSON.stringify({passed,manifest_and_icon:true,pinned_sdk_integrity:true,connect_cancel_restore_disconnect:true,mainnet_only:true,only_explicit_bounded_native_transfer:true,no_payment_status_mutations:true,real_wallet:false}));
