@@ -31,3 +31,14 @@ All credentials are Cloudflare Secrets. Do not add credentials to this repositor
 Run `node tests/checkout.test.mjs` (Node.js 22+). It covers URL handoff, order loading,
 error handling, server-derived paid state and the absence of browser admin tokens.
 Backend modules and their SQLite tests are delivered separately.
+
+## Termux test
+
+Install `curl jq openssl-tool`, download `termux-test.sh`, and run
+`bash termux-test.sh 150`. First-time setup rotates the Merchant Worker admin
+secret with a Cloudflare API token entered only in the terminal. The new admin
+secret and merchant token stay in a mode-0600 local credentials file. Cloudflare
+credentials are not saved. Existing registration clients must use the new admin
+secret after setup. Main/payment admin secrets are not changed.
+The helper tests a rejected token, registers a merchant, creates a pending order
+and prints its URL and status. Running it again creates another order.
