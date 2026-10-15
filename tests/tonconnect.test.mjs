@@ -13,8 +13,8 @@ let passed=0;
 assert.deepEqual(Object.keys(manifest).sort(),['iconUrl','name','url']);assert.equal(manifest.url,'https://plata-pay.github.io/order/');assert.equal(manifest.name,'Plata Pay');assert.equal(manifest.iconUrl,'https://plata-pay.github.io/order/assets/plata-icon-180.png');passed++;
 const icon=fs.readFileSync(root+'assets/plata-icon-180.png');assert.equal(icon.readUInt32BE(16),180);assert.equal(icon.readUInt32BE(20),180);passed++;
 const vendor=fs.readFileSync(root+'vendor/tonconnect-ui-5.0.1.min.js');assert.equal('sha384-'+createHash('sha384').update(vendor).digest('base64'),provenance.scriptIntegrity);assert.ok(controller.includes(provenance.scriptIntegrity));passed++;
-assert.ok(!/\.sendTransaction\s*\(|\.signData\s*\(|\.signMessage\s*\(/.test(controller));assert.ok(!/\/api\/orders\/status|merchant_token|ORDERS_ADMIN_TOKEN/.test(controller));passed++;
-assert.ok(html.includes("if (selected === 'keeper') return startTonConnection();"));assert.ok(html.includes("$('#tc-hash').textContent = tonAccount ? tonAccount.address"));passed++;
+assert.ok(!/\.signData\s*\(|\.signMessage\s*\(/.test(controller));assert.ok(controller.includes('return connector.sendTransaction(transaction,'));assert.ok(!/\/api\/orders\/status|merchant_token|ORDERS_ADMIN_TOKEN/.test(controller));passed++;
+assert.ok(html.includes("if (selected === 'keeper') return startTonPayment();"));assert.ok(html.includes("const prepared = await window.PlataGramPayment.prepare("));passed++;
 function environment({initial=null,scenario='connect',scriptError=false}={}){
  const state={scripts:[],uis:[],openCalls:0,disconnects:0,scenario,scriptError};
  class FakeUi {
@@ -30,6 +30,10 @@ function environment({initial=null,scenario='connect',scriptError=false}={}){
    else if(state.scenario==='invalid')this.emit({account:{...wallet.account,address:'<img src=x onerror=alert(1)>'}});
    else this.emit(wallet);
   });}
+  openModal(){return this.openSingleWalletModal('tonkeeper');}
+  onModalStateChange(callback){return this.onSingleWalletModalStateChange(callback);}
+  closeModal(){return this.closeSingleWalletModal();}
+  async sendTransaction(transaction){state.transaction=transaction;return {boc:'wallet-broadcast-result'};}
   closeSingleWalletModal(){for(const cb of [...this.modal])cb({status:'closed',closeReason:'action-cancelled'});}
   async disconnect(){state.disconnects++;this.emit(null);}
  }
@@ -65,4 +69,10 @@ for(const scenario of ['testnet','invalid']){
 {
  const {api}=environment({scenario:'error'});await assert.rejects(api.connect(),error=>!error.message.includes('private bridge error'));passed++;
 }
-console.log(JSON.stringify({passed,manifest_and_icon:true,pinned_sdk_integrity:true,connect_cancel_restore_disconnect:true,mainnet_only:true,no_signing_or_transfers:true,no_payment_status_mutations:true,real_wallet:false}));
+{
+ const {api,state}=environment();await api.connect();
+ const tx={network:'-239',from:wallet.account.address,validUntil:Math.floor(Date.now()/1000)+120,messages:[{address:'UQ'+ 'A'.repeat(46),amount:'1000000',payload:'AAAA'}]};
+ await api.send(tx);assert.equal(state.transaction.amount,undefined);assert.equal(state.transaction.messages[0].amount,'1000000');passed++;
+ for(const change of [t=>t.network='-3',t=>t.from='0:'+ 'b'.repeat(64),t=>t.messages.push(t.messages[0]),t=>t.messages[0].stateInit='AAAA',t=>t.messages[0].amount='-1',t=>t.validUntil=1]){const bad=structuredClone(tx);change(bad);await assert.rejects(api.send(bad));passed++;}
+}
+console.log(JSON.stringify({passed,manifest_and_icon:true,pinned_sdk_integrity:true,connect_cancel_restore_disconnect:true,mainnet_only:true,only_explicit_bounded_native_transfer:true,no_payment_status_mutations:true,real_wallet:false}));

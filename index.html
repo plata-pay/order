@@ -1340,6 +1340,7 @@
 
 
 <script src="/order/assets/tonconnect.js"></script>
+<script src="/order/assets/gram-payment.js"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1565,44 +1566,101 @@ function showPaymentSheet() {
   $('#btn-check').hidden = false;
   openSheet('action-sheet');
 }
-// TON Connect: connection never changes order or payment status.
-let tonAccount = null, tonBusy = false;
-function showTonAccount() {
-  $('#action-dots').hidden = true;
+// Native GRAM payments: quote before connect, explicit send, verified status only.
+let tonAccount = null, tonQuote = null, tonBusy = false, tonSent = false;
+function showTonPaymentSheet() {
+  showPaymentSheet();
   $('#ton-connect-info').hidden = false;
-  $('.tc-balance-label').textContent = 'Кошелёк';
-  $('#tc-balance-value').textContent = tonAccount ? 'Подключён' : 'Не подключён';
-  $('.tc-balance-cur').textContent = '';
-  $('#tc-hash').textContent = tonAccount ? tonAccount.address : 'Подключите Tonkeeper для продолжения';
-  $('#btn-go span').textContent = tonAccount ? 'Подключён' : 'Подключить';
-  $('#btn-go').disabled = !!tonAccount;
-  $('#btn-check').textContent = 'Отключить';
+  $('.tc-balance-label').textContent = 'К оплате';
+  $('#tc-balance-value').textContent = tonQuote ? tonQuote.gram_amount.replace(/0+$/, '').replace(/[.]$/, '') : '—';
+  $('.tc-balance-cur').textContent = 'GRAM';
+  $('#tc-hash').textContent = tonSent ? 'Ожидаем подтверждение в сети TON' : 'Сумма и получатель будут показаны в кошельке';
+  $('#btn-go span').textContent = tonSent ? 'Проверяем оплату' : 'Оплатить';
+  $('#btn-go').disabled = tonBusy || tonSent;
+  $('#btn-check').textContent = 'Проверить';
   $('#btn-check').disabled = tonBusy;
-  $('#btn-check').hidden = !tonAccount;
-  openSheet('action-sheet');
 }
-async function startTonConnection() {
-  if (tonBusy || !checkoutOrder || checkoutOrder.status !== 'pending') return;
-  if (phase !== 'idle' && !(phase === 'waiting' && selected === 'keeper')) return;
-  if (!window.PlataTonConnect) return notice('Не удалось загрузить подключение кошелька. Обновите страницу.', true);
-  clearFlow();
-  sheetIds.forEach(closeSheet);
-  phase = 'loading';
+function tonPaid() {
+  checkoutOrder = {...checkoutOrder, status:'paid'};
+  window.PlataGramPayment.save(checkoutOrder.id, null);
+  phase = 'verifying';
+  showSuccess();
+}
+function watchTonPayment() {
+  if (tonSent && selected === 'keeper' && phase === 'waiting') later(() => checkTonPayment(false), 4000);
+}
+async function checkTonPayment(manual = true) {
+  if (tonBusy || selected !== 'keeper' || phase !== 'waiting' || !checkoutOrder) return;
   tonBusy = true;
   try {
-    tonAccount = await window.PlataTonConnect.connect();
-    if (selected !== 'keeper' || !checkoutOrder || checkoutOrder.status !== 'pending') return;
-    phase = 'waiting';
-    showTonAccount();
-    notice('Tonkeeper подключён', false);
+    const status = await window.PlataGramPayment.status(checkoutOrder.id);
+    if (status === 'paid') { tonPaid(); return; }
+    if (manual) notice(status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена', status === 'expired' && !tonSent);
+  } catch (error) { if (manual) notice(error.message, true); }
+  finally { tonBusy = false; if (phase === 'waiting') { showTonPaymentSheet(); watchTonPayment(); } }
+}
+async function startTonPayment() {
+  if (tonBusy || !checkoutOrder || checkoutOrder.status !== 'pending' || phase !== 'idle') return;
+  if (!window.PlataTonConnect || !window.PlataGramPayment) return notice('Обновите страницу для подключения оплаты', true);
+  clearFlow(); sheetIds.forEach(closeSheet); phase = 'loading'; tonBusy = true;
+  openSheet('loading-sheet');
+  try {
+    const saved = window.PlataGramPayment.restore(checkoutOrder.id);
+    tonSent = !!saved;
+    tonQuote = saved ? saved.quote : await window.PlataGramPayment.quote(checkoutOrder.id);
+    if (tonQuote.status === 'paid') { tonPaid(); return; }
+    closeSheet('loading-sheet');
+    if (!tonSent) tonAccount = await window.PlataTonConnect.connect();
+    if (selected !== 'keeper' || checkoutOrder.status !== 'pending') return;
+    if (!tonSent && tonQuote.valid_until <= Date.now()/1000+15) {
+      tonQuote = await window.PlataGramPayment.quote(checkoutOrder.id);
+      if (tonQuote.status === 'paid') { tonPaid(); return; }
+    }
+    phase = 'waiting'; showTonPaymentSheet();
   } catch (error) {
     phase = 'idle';
-    if (error?.name !== 'TonConnectionCancelled') notice(error?.message || 'Не удалось подключить Tonkeeper', true);
-  } finally { tonBusy = false; if (selected === 'keeper' && phase === 'waiting') $('#btn-check').disabled = false; }
+    if (error?.name !== 'TonConnectionCancelled') notice(error.message || 'Не удалось подключить оплату GRAM', true);
+  } finally {
+    closeSheet('loading-sheet'); tonBusy = false;
+    if (phase === 'waiting') { showTonPaymentSheet(); watchTonPayment(); }
+    else if (phase === 'loading') phase = 'idle';
+  }
+}
+async function sendTonPayment() {
+  if (tonBusy || tonSent || phase !== 'waiting' || !tonQuote || !tonAccount) return;
+  tonBusy = true; $('#btn-go').disabled = true;
+  try {
+    const prepared = await window.PlataGramPayment.prepare(checkoutOrder.id, tonQuote.quote_id, tonAccount.address);
+    if (prepared.status === 'paid') { tonPaid(); return; }
+    tonQuote = prepared.quote;
+    // Persist uncertainty before asking the wallet: never repeat an ambiguous send.
+    tonSent = true;
+    window.PlataGramPayment.save(checkoutOrder.id, {sent:true,quote:tonQuote});
+    try {
+      closeSheet('action-sheet');
+      await window.PlataTonConnect.send(prepared.transaction);
+      notice('Перевод отправлен. Подтверждаем поступление.', false);
+    } catch (error) {
+      if (error?.name === 'UserRejectsError' || error?.code === 300 || error?.name === 'TonTransferInvalid') {
+        tonSent = false; window.PlataGramPayment.save(checkoutOrder.id, null);
+        notice('Перевод не выполнен. Можно повторить оплату.', true);
+      } else notice('Статус отправки уточняется. Проверяем поступление без повторного перевода.', true);
+    }
+  } catch (error) {
+    if (error.status === 409) {
+      try {
+        tonQuote = await window.PlataGramPayment.quote(checkoutOrder.id);
+        if (tonQuote.status === 'paid') { tonPaid(); return; }
+        notice('Курс обновлён. Проверьте сумму и нажмите «Оплатить» ещё раз.', true);
+      } catch (refreshError) { notice(refreshError.message, true); }
+    } else notice(error.message || 'Не удалось подготовить перевод', true);
+  } finally {
+    tonBusy = false;
+    if (phase === 'waiting') { showTonPaymentSheet(); watchTonPayment(); }
+  }
 }
 window.PlataTonConnect?.onChange((account, error) => {
   tonAccount = account;
-  if (selected === 'keeper' && phase === 'waiting') showTonAccount();
   if (error && selected === 'keeper') notice(error.message, true);
 });
 // CryptoBot integration: the Worker alone stores Crypto Pay credentials.
@@ -1726,7 +1784,7 @@ async function startCryptoPayment() {
 function startPayment() {
   if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
   if (selected === 'cryptobot') return startCryptoPayment();
-  if (selected === 'keeper') return startTonConnection();
+  if (selected === 'keeper') return startTonPayment();
   if (phase !== 'idle') return;
   clearFlow();
   phase = 'loading';
@@ -1797,6 +1855,7 @@ function reset() {
   $('#btn-check-transfer').disabled = false;
 }
 async function beginVerification() {
+  if (selected === 'keeper') return checkTonPayment(true);
   if (phase !== 'waiting' || cryptoRequestBusy) return;
   const now = Date.now();
   if (now - lastCheckClick < CHECK_COOLDOWN_MS) return;
@@ -1831,7 +1890,7 @@ async function beginVerification() {
 }
 $('#btn-go').addEventListener('click', () => {
   if (phase !== 'waiting') return;
-  if (selected === 'keeper') return startTonConnection();
+  if (selected === 'keeper') return sendTonPayment();
   if (selected === 'cryptobot') {
     if (!cryptoInvoice?.url) return notice('Счёт не создан',true);
     window.open(cryptoInvoice.url,'_blank','noopener,noreferrer');
@@ -1842,18 +1901,8 @@ $('#btn-go').addEventListener('click', () => {
     openSheet('transfer-sheet');
   } else notice('Этот способ оплаты пока не подключён',true);
 });
-$('#open-payment').addEventListener('click', () => { if (selected === 'keeper') return tonAccount ? showTonAccount() : startTonConnection(); if (selected === 'cryptobot' && cryptoInvoice?.url) window.open(cryptoInvoice.url,'_blank','noopener,noreferrer'); else showPaymentSheet(); });
-$('#btn-check').addEventListener('click', async () => {
-  if (selected === 'keeper' && phase === 'waiting') {
-    if (tonBusy) return;
-    tonBusy = true; $('#btn-check').disabled = true;
-    try { await window.PlataTonConnect.disconnect(); tonAccount = null; showTonAccount(); }
-    catch (_) { notice('Не удалось отключить кошелёк. Повторите попытку.', true); }
-    finally { tonBusy = false; $('#btn-check').disabled = false; }
-    return;
-  }
-  return beginVerification();
-});
+$('#open-payment').addEventListener('click', () => { if (selected === 'keeper') return tonQuote ? showTonPaymentSheet() : startTonPayment(); if (selected === 'cryptobot' && cryptoInvoice?.url) window.open(cryptoInvoice.url,'_blank','noopener,noreferrer'); else showPaymentSheet(); });
+$('#btn-check').addEventListener('click', beginVerification);
 $('#btn-check-transfer').addEventListener('click', beginVerification);
 function openConfirmation(origin) {
   if (phase !== 'waiting') return;

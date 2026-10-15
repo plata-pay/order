@@ -22,10 +22,9 @@ returned by the public reader. CryptoBot invoice creation validates the amount
 against the database; verified payment status is written through the protected
 Main Worker by a service binding. The browser cannot set `paid` directly.
 The page checks payment on the user's request; no provider webhook is configured.
-Tonkeeper now supports a connection-only TON Connect flow: choose Tonkeeper,
-select the existing currency option, press Continue, and approve in the wallet.
-The SDK handles its bridge session; the page shows the connected address and a
-Disconnect button. Existing sessions are restored when Tonkeeper is opened.
+Tonkeeper now starts the native GRAM payment flow: fetch a server quote, open
+TON Connect, connect a wallet, then press Pay in the existing payment sheet.
+The wallet shows the exact destination and native GRAM amount for approval.
 Other wallet methods from the supplied design remain unavailable placeholders.
 
 All credentials are Cloudflare Secrets. Do not add credentials to this repository.
@@ -36,30 +35,61 @@ Run `node tests/checkout.test.mjs` (Node.js 22+). It covers URL handoff, order l
 error handling, server-derived paid state and the absence of browser admin tokens.
 Backend modules and their SQLite tests are delivered separately.
 
-## Tonkeeper / TON Connect
+## TON Connect and native GRAM payments
 
-The public manifest is `https://plata-pay.github.io/order/tonconnect-manifest.json`.
-It uses a local 180×180 PNG icon. The official `@tonconnect/ui` 5.0.1 browser
-bundle is vendored with its Apache-2.0 license. Its npm tarball integrity was
-verified at import; the loader pins a SHA-384 Subresource Integrity value.
-`vendor/tonconnect-ui-provenance.json` records the exact version and hashes.
-The SDK is loaded only after the user selects the Tonkeeper flow. Analytics
-is disabled, network is restricted to TON Mainnet (`-239`), and cancellation,
-restoration, disconnect and malformed account data are handled explicitly.
-The manifest URL is fixed and contains no order ID or credentials.
+Manifest: `https://plata-pay.github.io/order/tonconnect-manifest.json`.
+The SDK is `@tonconnect/ui` 5.0.1, stored locally with its Apache-2.0 license,
+verified npm tarball integrity and pinned SHA-384 browser integrity check.
+Analytics is off and the network is TON mainnet (`-239`). The wallet picker
+supports Tonkeeper and other compatible TON Connect wallets.
 
-This is wallet connection, not wallet authentication or payment collection.
-The application requests no transaction, signature, seed phrase or private key,
-and cannot mark an order paid through a connection event. Account information
-is rendered as text and is not sent to our Workers. No extra Worker or database
-binding is needed for this connection-only flow.
+Converter: `https://plata-converter.dpl-payments.workers.dev/convert?from=RUB&to=GRAM&amount=5`.
+Payment service: `https://plata-ton-pay.dpl-payments.workers.dev`.
+GRAM means the native coin previously called Toncoin, not the unrelated jetton.
+Quotes use integer base units (10^9 per GRAM), round up to avoid underpayment,
+expire after at most 180 seconds, and never outlive their order's payment window.
+The quote is stored server-side. The client cannot supply the exchange rate,
+expected amount, recipient or payment status.
 
-Actual payment collection needs the owner's public receiving address and the
-chosen asset (native TON or the intended GRAM jetton), a server-created quote
-and an independent server-side on-chain receipt check. None of those values
-are inferred from a visitor's wallet. Existing CryptoBot payments are unchanged.
+Flow:
+1. The service reads the RUB amount from the order database and gets a quote.
+2. TON Connect opens only after conversion succeeds.
+3. The customer connects a wallet and sees the payment panel.
+4. Pay prepares the server's exact transaction and requests wallet approval.
+5. The service independently checks the finalized incoming on-chain receipt.
+6. Main stores `paid`; the page displays success and the paid link persists.
 
-Run `node tests/tonconnect.test.mjs` for the manifest, icon, SDK hash, connection
-lifecycle, wrong-network rejection and absence of payment-status side effects.
-Wallet and SDK bridge events are mocked; real Tonkeeper approval requires a
-user-controlled wallet.
+A wallet's broadcast result is not a receipt. Confirmation requires the exact
+native-coin destination, quote-specific comment hash, sufficient credited
+amount, a successful non-bounced transaction and masterchain finality.
+A private settlement capability is shared only by Main and the payment service.
+The original two D1 schemas keep their existing columns; quotes and receipt
+tracking use a per-order Durable Object with automatic alarms. The verifier
+continues after the browser closes. If the indexer is delayed beyond the unpaid
+row cleanup, a genuine in-window finalized payment restores the original paid
+order. Verified receipts retry persistence until successful. Missing receipts
+are watched for up to 24 hours; long provider outages need reconciliation.
+
+The application requests only a specific native-coin transfer; it never requests
+seed phrases, private keys, arbitrary signatures or token permissions. Unknown
+broadcast outcomes disable repeat sending while receipt checking continues.
+An expired quote requires the user to review the refreshed amount and click
+Pay again. Account data and backend messages are rendered as text.
+
+**Activation:** the payment Worker requires the owner's public
+`PAYMENT_RECIPIENT` mainnet address, for an activated receiving wallet.
+There is no sample/default destination. Until that binding is configured,
+quote/transfer preparation fails closed. `TONCENTER_API_KEY` and
+`COINGECKO_API_KEY` are optional server Secrets for higher upstream limits.
+No merchant/admin credentials are shipped to the browser.
+
+Validation:
+- `node tests/checkout.test.mjs`
+- `node tests/tonconnect.test.mjs`
+- `node tests/gram-flow.test.mjs`
+
+The backend has separate real-SQLite tests for quote tampering, underpayment,
+wrong recipients, finality, delayed indexing, secret separation and automatic
+confirmation. Wire-format fixtures are independently generated using
+`@ton/core@0.63.1`. Wallet/indexer responses in local tests are mocked;
+mainnet payment requires the owner's destination and customer wallet approval.
