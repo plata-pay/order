@@ -782,26 +782,32 @@
       position: fixed;
       inset: 0;
       z-index: 9998;
-      background: var(--bg);
-      color: #8c8c8c;
+      box-sizing: border-box;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: max(24px, env(safe-area-inset-top, 24px)) 24px max(24px, env(safe-area-inset-bottom, 24px));
+      gap: 28px;
+      padding: 32px 24px;
+      background: radial-gradient(ellipse 65% 48% at 50% 52%, #0e2919 0%, #0b160e 48%, #0b0e0b 100%);
       text-align: center;
-      opacity: 0;
-      animation: paid-in 0.5s ease 0.05s both;
+      opacity: 1;
     }
     .notfound-screen[hidden] { display: none !important; }
-
-    .notfound-text {
-      font-family: inherit;
-      font-size: clamp(18px, 5vw, 22px);
-      font-weight: 500;
-      line-height: 1.4;
-      letter-spacing: 0.01em;
+    .notfound-code {
       margin: 0;
-      color: #8c8c8c;
+      color: #31573d;
+      font: 800 clamp(112px, 25vw, 176px)/0.95 Arial, sans-serif;
+      letter-spacing: -0.065em;
+    }
+    .notfound-code span { color: #3cb874; }
+    .notfound-text {
+      max-width: 580px;
+      margin: 0;
+      color: #f4f7f4;
+      font: 700 clamp(28px, 7vw, 42px)/1.12 Arial, sans-serif;
+      letter-spacing: -0.035em;
+      text-wrap: balance;
     }
 
     @media(prefers-reduced-motion: reduce) {
@@ -1240,7 +1246,8 @@
 </div>
 <!-- Экран "Инвойс не найден" -->
 <div aria-live="polite" class="notfound-screen" hidden="" id="notfound-screen" role="status">
-<p class="notfound-text" id="checkout-message">Счёт не найден</p>
+<div class="notfound-code" aria-hidden="true">404<span>.</span></div>
+<p class="notfound-text" id="checkout-message">Не удалось загрузить инвойс</p>
 <button class="backbutton" id="checkout-retry" type="button" hidden>Повторить</button>
 </div>
 <!-- Нижние панели -->
@@ -1980,8 +1987,8 @@ function showCheckoutError(message, retry) {
   $('#page').style.display = 'none';
   $('#paid-screen').hidden = true;
   $('#notfound-screen').hidden = false;
-  $('#checkout-message').textContent = message;
-  $('#checkout-retry').hidden = !retry;
+  $('#checkout-message').textContent = 'Не удалось загрузить инвойс';
+  $('#checkout-retry').hidden = true;
 }
 async function bootCheckout() {
   const started = Date.now();
@@ -1994,8 +2001,7 @@ async function bootCheckout() {
     $('.amount-value .sum').textContent = new Intl.NumberFormat('ru-RU', {maximumFractionDigits:2}).format(checkoutOrder.amount);
     document.title = 'Plata Pay — заказ ' + checkoutOrder.id;
     $('#notfound-screen').hidden = true;
-    if (checkoutOrder.status === 'paid') { phase = 'verifying'; showSuccess(); }
-    else if (checkoutOrder.status !== 'pending') { showCheckoutError(checkoutOrder.status === 'expired' ? 'Срок действия счёта истёк' : 'Счёт отменён', false); }
+    if (checkoutOrder.status !== 'pending') { showCheckoutError(checkoutOrder.status === 'expired' ? 'Срок действия счёта истёк' : 'Счёт отменён', false); }
     else { $('#page').style.display = ''; $('#page').classList.add('revealed'); }
   } catch (error) {
     checkoutOrder = null;
