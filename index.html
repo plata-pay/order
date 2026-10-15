@@ -1,0 +1,3029 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="theme-color" content="#1a1a1a">
+    <title>Plata Пэй — оплата инвойса</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Onest:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+    :root {
+      color-scheme: dark;
+      --base-u: clamp(0.85px, calc(100vw / 392), 1.15px);
+      --u: calc(var(--base-u) * 1.02);
+      --bg: #141414;
+      --panel: #1f1f1f;
+      --panel-inner: #181818;
+      --border: #333333;
+      --border-focus: #555555;
+      --text: #a8a8a8;
+      --text-white: #ffffff;
+      --green: #29e06e;
+      --green-hover: #35f07c;
+      --purple: #6242f5;
+      --lavender: #b6a5ff;
+      --violetfield: #2d2642;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); }
+    html, body { overscroll-behavior-y: none; }
+    body {
+      font-family: 'Onest', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; color: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible {
+      outline: calc(1.5 * var(--u)) solid var(--lavender);
+      outline-offset: calc(2 * var(--u));
+    }
+    button:disabled { cursor: wait; opacity: 0.65; }
+    [hidden] { display: none !important; }
+
+    /* ===== Первичный полноэкранный лоадер ===== */
+    .fullscreen-loading {
+      position: fixed; inset: 0; z-index: 9999;
+      width: 100vw; height: 100vh; height: 100svh;
+      display: grid; place-items: center;
+      background: var(--bg);
+      opacity: 1; visibility: visible;
+      transition: opacity 0.7s ease, visibility 0.7s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: opacity, transform;
+    }
+    .fullscreen-loading.is-dissolving {
+      opacity: 0; visibility: hidden;
+      transform: scale(1.06); pointer-events: none;
+    }
+    .fullscreen-loading .loading-spinner {
+      width: calc(64 * var(--u)); height: calc(64 * var(--u));
+      border: calc(10 * var(--u)) solid #2b2b2b;
+      border-left-color: var(--green);
+      border-radius: 50%;
+      animation: loading-spin 0.9s linear infinite;
+    }
+
+    .page {
+      min-height: 100svh;
+      padding: calc(16 * var(--u)) calc(16 * var(--u)) max(calc(24 * var(--u)), env(safe-area-inset-bottom, 20px));
+      display: flex; flex-direction: column;
+      perspective: calc(1200 * var(--u));
+      perspective-origin: 50% 20%;
+      position: relative; z-index: 2;
+    }
+
+    .checkout {
+      position: relative; width: 100%;
+      max-width: calc(410 * var(--u));
+      margin: 0 auto; background: transparent;
+      transform-style: preserve-3d;
+    }
+    .page.revealed .checkout > .header,
+    .page.revealed .checkout > .content > * {
+      opacity: 0;
+      transform: translate3d(0, calc(28 * var(--u)), calc(-60 * var(--u))) rotateX(-14deg);
+      transform-origin: 50% 100%;
+      animation: wave-in 0.95s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .page.revealed .checkout > .header { animation-delay: 0.02s; }
+    .page.revealed .checkout > .content > *:nth-child(1) { animation-delay: 0.10s; }
+    .page.revealed .checkout > .content > *:nth-child(2) { animation-delay: 0.18s; }
+    .page.revealed .checkout > .content > *:nth-child(3) { animation-delay: 0.26s; }
+    .page.revealed .checkout > .content > *:nth-child(4) { animation-delay: 0.34s; }
+    .page.revealed .checkout > .content > *:nth-child(5) { animation-delay: 0.42s; }
+    @keyframes wave-in {
+      0% { opacity: 0; transform: translate3d(0, calc(34 * var(--u)), calc(-80 * var(--u))) rotateX(-16deg); }
+      60% { opacity: 1; }
+      100% { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0deg); }
+    }
+    .page:not(.revealed) .checkout { opacity: 0; }
+
+    .header {
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(10 * var(--u)) 0 calc(22 * var(--u));
+    }
+    .logo {
+      display: flex; align-items: center; justify-content: center;
+      height: calc(44 * var(--u)); max-width: 100%;
+    }
+    .logo img {
+      display: block; height: 100%;
+      max-height: calc(44 * var(--u));
+      width: auto; max-width: calc(240 * var(--u));
+      object-fit: contain;
+    }
+    .content { padding: 0; margin-top: calc(56 * var(--u)); }
+
+    .amount {
+      position: relative; width: 100%;
+      margin: 0 0 calc(22 * var(--u)); padding: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: calc(6 * var(--u)); background: transparent; border: 0; text-align: center;
+    }
+    .amount-label { font-size: calc(12 * var(--u)); line-height: 1.3; color: #8c8c8c; font-weight: 400; }
+    .amount-value {
+      display: inline-flex; align-items: baseline; justify-content: center;
+      font-weight: 300; line-height: 1; letter-spacing: -0.02em;
+      color: var(--text-white); font-variant-numeric: tabular-nums;
+    }
+    .amount-value .cur {
+      margin-right: calc(6 * var(--u));
+      font-size: calc(32 * var(--u)); color: #949494; font-weight: 300; line-height: 1;
+    }
+    .amount-value .sum {
+      font-size: calc(52 * var(--u)); color: var(--text-white); font-weight: 300;
+      line-height: 1; letter-spacing: -0.03em;
+    }
+
+    .method-wrap { position: relative; margin-bottom: calc(10 * var(--u)); }
+    .method-toggle {
+      background: #1c1c1c; border: calc(1 * var(--u)) solid var(--border);
+      border-radius: calc(10 * var(--u)); width: 100%;
+      min-height: calc(62 * var(--u));
+      padding: calc(10 * var(--u)) calc(16 * var(--u));
+      text-align: left; display: flex; align-items: center; justify-content: space-between;
+      gap: calc(12 * var(--u)); transition: border-color 0.2s, background 0.2s;
+    }
+    .method-toggle:hover, .method-toggle[aria-expanded=true] { border-color: #555; background: #222; }
+    .method-toggle.invalid { border-color: #ba4747; }
+    .field-label { display: block; font-size: calc(12 * var(--u)); font-weight: 400; line-height: 1.3; color: #888; }
+    .method-value { display: block; margin-top: calc(4 * var(--u)); font-size: calc(14 * var(--u)); font-weight: 600; line-height: 1.2; color: #e2e2e2; }
+    .method-toggle.chosen>span:first-child { display: flex; align-items: center; gap: calc(10 * var(--u)); min-width: 0; }
+    .selected-coin { width: calc(28 * var(--u)); height: calc(28 * var(--u)); flex: none; }
+
+    .chevron {
+      display: inline-block; width: calc(7 * var(--u)); height: calc(7 * var(--u));
+      border-right: calc(1.8 * var(--u)) solid #777;
+      border-bottom: calc(1.8 * var(--u)) solid #777;
+      transform: rotate(45deg);
+      margin-right: calc(4 * var(--u)); margin-top: calc(-3 * var(--u));
+      flex: none; transition: transform 0.22s, border-color 0.2s;
+    }
+    .method-toggle[aria-expanded=true] .chevron {
+      transform: rotate(225deg); margin-top: calc(3 * var(--u)); border-color: #bbb;
+    }
+
+    .detail-wrap { margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); }
+    .detail-wrap .method-toggle.chosen>span:first-child { display: block; }
+
+    .email {
+      display: block; background: #1c1c1c;
+      border: calc(1 * var(--u)) solid var(--border);
+      border-radius: calc(10 * var(--u));
+      padding: calc(10 * var(--u)) calc(16 * var(--u));
+      min-height: calc(62 * var(--u));
+      margin-bottom: calc(10 * var(--u));
+      transition: border-color 0.2s;
+    }
+    .email input {
+      display: block; width: 100%; border: 0; background: transparent;
+      outline: none; color: #e5e5e5; font-size: calc(14 * var(--u)); font-weight: 500;
+      height: calc(24 * var(--u)); margin-top: calc(4 * var(--u)); padding: 0; line-height: 1.2;
+    }
+    .email input::placeholder { color: #666; font-weight: 400; }
+    .email:focus-within { border-color: #666; background: #212121; }
+    .email:has(input:user-invalid) { border-color: #ba4747; }
+
+    .order {
+      margin: calc(10 * var(--u)) 0 calc(14 * var(--u));
+      min-height: calc(72 * var(--u));
+      background: #191919; border: calc(1 * var(--u)) solid #282828;
+      border-radius: calc(10 * var(--u));
+      text-align: center;
+      padding: calc(12 * var(--u)) calc(14 * var(--u)) calc(30 * var(--u));
+      position: relative;
+    }
+    .order-text { font-size: calc(12.5 * var(--u)); line-height: 1.35; color: #8c8c8c; }
+    .order-text b { font-weight: 600; color: #ccc; margin-right: calc(4 * var(--u)); }
+    .order-id {
+      display: inline-block; margin-top: calc(2 * var(--u));
+      font-size: calc(11.5 * var(--u)); color: #727272;
+      overflow-wrap: anywhere; font-family: monospace;
+    }
+    .order-details {
+      position: absolute; left: 50%; bottom: calc(6 * var(--u));
+      transform: translateX(-50%);
+      display: flex; align-items: center; justify-content: center;
+      gap: calc(4 * var(--u)); height: calc(20 * var(--u)); width: calc(46 * var(--u));
+      border: 0; background: none; padding: 0;
+    }
+    .order-details i {
+      height: calc(6 * var(--u)); width: calc(6 * var(--u));
+      border-radius: 50%; background: #7a7a7a;
+      animation: invoice-dot 1.45s cubic-bezier(0.45, 0, 0.35, 1) infinite;
+    }
+    .order-details i:nth-child(2) { animation-delay: 0.15s; }
+    .order-details i:nth-child(3) { animation-delay: 0.3s; }
+
+    .actions { display: flex; margin-top: calc(12 * var(--u)); height: calc(48 * var(--u)); }
+    .continue {
+      width: 100%; height: 100%; border: 0; border-radius: calc(9 * var(--u));
+      background: var(--green); color: #0c331a; padding: 0 calc(16 * var(--u));
+      font-size: calc(15 * var(--u)); font-weight: 700;
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      transition: background 0.18s, transform 0.15s;
+    }
+    .continue:hover { background: var(--green-hover); }
+    .continue:active { transform: scale(0.99); }
+
+    .footer-nav {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: calc(8 * var(--u)); margin-top: calc(10 * var(--u));
+    }
+    .footer-button {
+      display: flex; align-items: center; justify-content: center;
+      gap: calc(7 * var(--u));
+      min-height: calc(38 * var(--u));
+      padding: calc(8 * var(--u)) calc(12 * var(--u));
+      border: calc(1 * var(--u)) solid var(--border);
+      border-radius: calc(8 * var(--u));
+      background: #181818; color: #999;
+      font-size: calc(12 * var(--u)); font-weight: 500; line-height: 1.2;
+      transition: color 0.2s, background 0.2s, border-color 0.2s;
+    }
+    .footer-button:hover { color: #e0e0e0; background: #242424; border-color: #4a4a4a; }
+    .footer-button .navicon { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
+
+    .method-menu {
+      position: absolute; top: calc(100% + 6 * var(--u)); left: 0; right: 0;
+      background: #1f1f1f; border: calc(1 * var(--u)) solid #3a3a3a;
+      border-radius: calc(10 * var(--u)); padding: calc(10 * var(--u));
+      box-shadow: 0 calc(12 * var(--u)) calc(28 * var(--u)) rgba(0, 0, 0, 0.45);
+      z-index: 10; transform-origin: top;
+      animation: open 0.2s ease both;
+    }
+    .tabs {
+      display: flex; gap: calc(3 * var(--u)); background: #141414;
+      border-radius: calc(7 * var(--u)); padding: calc(3 * var(--u));
+      height: calc(32 * var(--u)); margin-bottom: calc(10 * var(--u));
+      overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex: 0 0 auto; border: 0; border-radius: calc(5 * var(--u));
+      background: transparent; color: #888;
+      font-size: calc(11.5 * var(--u)); font-weight: 500;
+      padding: 0 calc(10 * var(--u)); white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab[aria-selected=true] { background: #2c2c2c; color: #fff; }
+    .options {
+      max-height: calc(260 * var(--u)); overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: #444 transparent;
+      overscroll-behavior: contain;
+    }
+    .group-title {
+      font-size: calc(11 * var(--u)); font-weight: 500;
+      line-height: calc(15 * var(--u));
+      margin: 0 0 calc(6 * var(--u)); padding: 0 calc(6 * var(--u)); color: #777;
+    }
+    .group + .group { margin-top: calc(12 * var(--u)); }
+    .option {
+      width: 100%; display: flex; align-items: center;
+      gap: calc(10 * var(--u));
+      min-height: calc(48 * var(--u));
+      padding: calc(7 * var(--u)) calc(8 * var(--u));
+      border: 0; background: transparent; border-radius: calc(8 * var(--u));
+      text-align: left; color: #bbb; position: relative;
+      transition: background 0.15s, color 0.15s;
+    }
+    .option:hover, .option:focus-visible { background: #2a2a2a; outline: none; }
+    .option[aria-selected=true] { background: #252b27; color: #fff; }
+    .option[aria-selected=true]:after {
+      content: ""; width: calc(7 * var(--u)); height: calc(4 * var(--u));
+      border-left: calc(1.8 * var(--u)) solid var(--green);
+      border-bottom: calc(1.8 * var(--u)) solid var(--green);
+      transform: rotate(-45deg);
+      margin-left: auto; margin-right: calc(8 * var(--u));
+    }
+    .option b { display: block; font-size: calc(13.5 * var(--u)); font-weight: 600; color: #ddd; line-height: 1.15; }
+    .option small { font-size: calc(11 * var(--u)); font-weight: 400; color: #888; line-height: 1.2; display: block; margin-top: calc(2 * var(--u)); }
+
+    .coin {
+      display: grid; place-items: center;
+      width: calc(30 * var(--u)); height: calc(30 * var(--u));
+      flex: none; border-radius: 50%; overflow: hidden; background: #232323; user-select: none;
+    }
+    .coin img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+    .legal {
+      margin: calc(14 * var(--u)) 0 0; text-align: center;
+      font-size: calc(11.5 * var(--u)); line-height: 1.5; color: #666;
+      max-width: calc(340 * var(--u)); margin-left: auto; margin-right: auto;
+    }
+    .textlink {
+      color: #9283c7; padding: 0; border: 0; background: transparent;
+      font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+    }
+    .textlink:hover { color: #b7a7f0; }
+
+    .navicon { width: calc(14 * var(--u)); height: calc(14 * var(--u)); display: inline-block; position: relative; flex: none; }
+    .headset:before {
+      content: ""; position: absolute; inset: 0 0 calc(2.8 * var(--u));
+      border: calc(1.5 * var(--u)) solid currentColor;
+      border-bottom: 0;
+      border-radius: calc(8 * var(--u)) calc(8 * var(--u)) 0 0;
+    }
+    .headset:after {
+      content: ""; position: absolute;
+      width: calc(3 * var(--u)); height: calc(5 * var(--u));
+      background: currentColor; border-radius: calc(1 * var(--u));
+      left: calc(0.2 * var(--u)); top: calc(5 * var(--u));
+      box-shadow: calc(8.6 * var(--u)) 0 currentColor;
+    }
+    .headset i {
+      position: absolute;
+      width: calc(5 * var(--u)); height: calc(4 * var(--u));
+      right: 0; bottom: 0;
+      border-right: calc(1.4 * var(--u)) solid currentColor;
+      border-bottom: calc(1.4 * var(--u)) solid currentColor;
+      border-radius: 0 0 calc(2 * var(--u)) 0;
+    }
+
+    .payview { padding: calc(20 * var(--u)) 0 calc(8 * var(--u)); text-align: center; }
+    .payview h2 { color: #dedede; font-size: calc(18 * var(--u)); font-weight: 600; margin: calc(20 * var(--u)) 0 calc(8 * var(--u)); }
+    .payview p { font-size: calc(12.5 * var(--u)); line-height: 1.5; margin: calc(6 * var(--u)) 0; color: #8c8c8c; }
+    .payview .payicon { width: calc(46 * var(--u)); height: calc(46 * var(--u)); margin: auto; font-size: calc(24 * var(--u)); }
+    .payrow {
+      display: flex; justify-content: space-between;
+      border-top: calc(1 * var(--u)) solid #2b2b2b;
+      padding: calc(12 * var(--u)) 0;
+      font-size: calc(13 * var(--u)); margin-top: calc(22 * var(--u));
+    }
+    .payrow strong { font-weight: 500; color: #ddd; }
+    .widebutton { width: 100%; height: calc(44 * var(--u)); margin-top: calc(12 * var(--u)); }
+    .backbutton {
+      display: block; background: none; border: 0;
+      padding: calc(8 * var(--u)) 0; color: #9283c7;
+      font-size: calc(12 * var(--u)); margin: calc(8 * var(--u)) auto 0;
+    }
+    .expiry { font-size: calc(12 * var(--u)); color: #777; margin: calc(12 * var(--u)) 0; }
+    .status-pulse {
+      width: 6px; height: 6px; border-radius: 50%;
+      display: inline-block; background: #ab94f8;
+      margin-right: 6px; animation: pulse 1.8s infinite;
+    }
+    .payrow + .payrow { margin-top: 0; }
+
+    /* ===== Диалог ===== */
+    dialog {
+      border: 1px solid #444; background: #202020; color: #bbb;
+      border-radius: 14px; width: 370px;
+      max-width: calc(100% - 32px); padding: 22px;
+      font-size: 13px; line-height: 1.55;
+    }
+    dialog::backdrop { background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); }
+    dialog h2 { font-size: 18px; color: #eee; font-weight: 600; margin: 0 0 14px; }
+    dialog p { margin: 10px 0; }
+    dialog .close {
+      background: #2a2a2a; border: 1px solid #444; border-radius: 8px;
+      padding: 10px 18px; color: #ddd; margin-top: 14px;
+      font-size: 13px; font-weight: 500; width: 100%;
+    }
+
+    /* ===== Bottom sheets ===== */
+    .sheet {
+      position: fixed; inset: auto 0 0; margin: 0;
+      width: 100%; max-width: none;
+      border: 0;
+      border-radius: calc(18 * var(--u)) calc(18 * var(--u)) 0 0;
+      background: #1f1f1f;
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+      outline: none; padding: 0; color: var(--text); overflow: hidden;
+    }
+    .sheet::backdrop {
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+      animation: backdrop-in 0.35s ease both;
+    }
+    .sheet.closing::backdrop { animation: backdrop-out 0.3s ease both; }
+    .sheet[open] { display: block; animation: sheet-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .sheet.closing { animation: sheet-fall 0.32s cubic-bezier(0.55, 0, 0.6, 1) both; }
+    .sheet-body {
+      width: 100%; height: 100%;
+      padding: calc(20 * var(--u)) calc(20 * var(--u)) max(calc(20 * var(--u)), env(safe-area-inset-bottom, 14px));
+      display: flex; flex-direction: column; align-items: center;
+      gap: calc(14 * var(--u)); overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: #444 transparent;
+    }
+
+    .loading-sheet { height: 22dvh; z-index: 101; }
+    .action-sheet { height: 26dvh; }
+    .transfer-sheet { height: 70dvh; }
+    .confirm-sheet { height: auto; min-height: calc(150 * var(--u)); }
+
+    /* ===== Правовая информация (оферта / политика) ===== */
+    .legal-sheet {
+      height: 70dvh;
+      border-radius: calc(14 * var(--u)) calc(14 * var(--u)) 0 0;
+      background: #1f1f1f;
+    }
+    .legal-sheet .sheet-body {
+      padding: calc(18 * var(--u)) calc(18 * var(--u)) max(calc(18 * var(--u)), env(safe-area-inset-bottom, 14px));
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: calc(12 * var(--u));
+    }
+    .legal-content {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      text-align: left;
+      color: #b9b9b9;
+      font-size: calc(13 * var(--u));
+      line-height: 1.6;
+      padding: 0 calc(4 * var(--u));
+      scrollbar-width: thin;
+      scrollbar-color: #444 transparent;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .legal-content h1 {
+      font-size: calc(18 * var(--u));
+      color: #f0f0f0; font-weight: 700;
+      margin: calc(4 * var(--u)) 0 calc(10 * var(--u));
+      line-height: 1.25;
+    }
+    .legal-content h2 {
+      font-size: calc(15 * var(--u));
+      color: #e2e2e2; font-weight: 600;
+      margin: calc(16 * var(--u)) 0 calc(6 * var(--u));
+      line-height: 1.3;
+    }
+    .legal-content h3 {
+      font-size: calc(13.5 * var(--u));
+      color: #d2d2d2; font-weight: 600;
+      margin: calc(12 * var(--u)) 0 calc(4 * var(--u));
+    }
+    .legal-content p { margin: calc(6 * var(--u)) 0; }
+    .legal-content strong { color: #e6e6e6; font-weight: 600; }
+    .legal-content em { color: #d0c7f7; font-style: italic; }
+    .legal-content ul {
+      margin: calc(4 * var(--u)) 0 calc(6 * var(--u)) calc(18 * var(--u));
+      padding: 0;
+    }
+    .legal-content li { margin: calc(3 * var(--u)) 0; }
+    .legal-content a { color: #9283c7; text-decoration: underline; text-underline-offset: 2px; }
+    .legal-content a:hover { color: #b7a7f0; }
+    .legal-close {
+      flex: 0 0 auto;
+      width: 100%; max-width: none;
+      min-height: calc(46 * var(--u));
+      background: #2a2a2a; color: #e0e0e0;
+      border: calc(1 * var(--u)) solid #3a3a3a;
+      border-radius: calc(12 * var(--u));
+      font-size: calc(14 * var(--u)); font-weight: 600;
+    }
+    .legal-close:hover { background: #333; }
+
+    .sheet-backdrop {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+      animation: backdrop-in 0.35s ease both;
+    }
+    .sheet-backdrop.closing { animation: backdrop-out 0.3s ease both; }
+
+    .loading-sheet .sheet-stage {
+      position: absolute; inset: 0;
+      display: grid; place-items: center;
+      padding: calc(16 * var(--u));
+    }
+
+    .loading-spinner {
+      width: calc(46 * var(--u)); height: calc(46 * var(--u));
+      border: calc(7 * var(--u)) solid #2b2b2b;
+      border-left-color: var(--green);
+      border-radius: 50%;
+      animation: loading-spin 1s linear infinite;
+    }
+
+    .tc-view { display: flex; flex-direction: column; align-items: center; gap: calc(14 * var(--u)); }
+    .tc-icon {
+      width: calc(52 * var(--u)); height: calc(52 * var(--u));
+      border-radius: 50%; background: #232323;
+      padding: calc(8 * var(--u)); object-fit: contain;
+      animation: tc-pulse 1.5s ease-in-out infinite;
+    }
+    .tc-text {
+      margin: 0; font-size: calc(13 * var(--u));
+      color: #c8c8c8; font-weight: 500; letter-spacing: 0.01em;
+    }
+    @keyframes tc-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.08); opacity: 0.82; }
+    }
+
+    .action-sheet .sheet-body {
+      justify-content: space-between;
+      padding: calc(46 * var(--u)) calc(18 * var(--u)) max(calc(14 * var(--u)), env(safe-area-inset-bottom, 12px));
+      gap: calc(10 * var(--u));
+    }
+
+    .dots-loader { display: flex; gap: calc(9 * var(--u)); align-items: center; justify-content: center; padding: 0; }
+    .dots-loader i {
+      width: calc(11 * var(--u)); height: calc(11 * var(--u));
+      border-radius: 50%; background: #7a7a7a;
+      animation: dot-bounce 1.15s ease-in-out infinite;
+    }
+    .dots-loader i:nth-child(2) { animation-delay: 0.16s; }
+    .dots-loader i:nth-child(3) { animation-delay: 0.32s; }
+    @keyframes dot-bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.55; }
+      30% { transform: translateY(calc(-9 * var(--u))); opacity: 1; }
+    }
+
+    .ton-connect-info {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: calc(6 * var(--u)); text-align: center;
+      width: 100%; padding: 0 calc(10 * var(--u));
+    }
+    .tc-balance {
+      display: inline-flex; align-items: baseline; justify-content: center;
+      font-size: calc(28 * var(--u)); font-weight: 600;
+      color: #e6e6e6; letter-spacing: -0.02em; line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .tc-balance-label {
+      font-size: calc(14 * var(--u)); font-weight: 500;
+      color: #8c8c8c; margin-right: calc(8 * var(--u)); letter-spacing: 0.02em;
+    }
+    .tc-balance-cur {
+      font-size: calc(14 * var(--u)); font-weight: 500;
+      color: #8c8c8c; margin-left: calc(6 * var(--u)); letter-spacing: 0.02em;
+    }
+    .tc-hash {
+      font-size: calc(12 * var(--u)); color: #777;
+      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      letter-spacing: 0.01em; word-break: break-all; max-width: 100%;
+    }
+
+    .action-buttons { display: flex; gap: calc(10 * var(--u)); width: 100%; max-width: calc(360 * var(--u)); }
+
+    .btn-primary, .btn-ghost, .btn-danger, .btn-dark {
+      flex: 1; min-height: calc(46 * var(--u));
+      border: 0; border-radius: calc(12 * var(--u));
+      font-size: calc(14 * var(--u)); font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      gap: calc(8 * var(--u));
+      transition: background 0.18s, transform 0.15s;
+      padding: 0 calc(14 * var(--u));
+    }
+    .btn-primary { background: var(--green); color: #0c331a; }
+    .btn-primary:hover { background: var(--green-hover); }
+    .btn-primary:active { transform: scale(0.99); }
+    .btn-primary:disabled { opacity: 0.65; cursor: wait; }
+
+    .btn-ghost { background: #2a2a2a; color: #e0e0e0; border: calc(1 * var(--u)) solid #3a3a3a; }
+    .btn-ghost:hover { background: #333; }
+
+    .arrow-up-right { width: calc(15 * var(--u)); height: calc(15 * var(--u)); flex: none; }
+
+    .btn-danger { background: #e53935; color: #ffffff; border-radius: 999px; }
+    .btn-danger:hover { background: #ef5350; }
+    .btn-dark {
+      background: #151515; color: #ffffff;
+      border-radius: 999px; border: calc(1 * var(--u)) solid #333;
+    }
+    .btn-dark:hover { background: #222; }
+
+    .transfer-sheet .sheet-body {
+      justify-content: flex-start; gap: calc(14 * var(--u));
+      padding-top: calc(22 * var(--u));
+    }
+
+    .qr-wrap {
+      padding: calc(12 * var(--u));
+      border-radius: calc(16 * var(--u));
+      background: #ffffff;
+      box-shadow: 0 calc(6 * var(--u)) calc(20 * var(--u)) rgba(0,0,0,0.35);
+      flex: none;
+    }
+    .qr-wrap img {
+      display: block;
+      width: calc(180 * var(--u)); height: calc(180 * var(--u));
+      object-fit: contain; image-rendering: pixelated;
+    }
+
+    .field-list { width: 100%; max-width: calc(360 * var(--u)); display: flex; flex-direction: column; gap: calc(8 * var(--u)); }
+    .field-row {
+      width: 100%; background: #191919;
+      border: calc(1 * var(--u)) solid #2c2c2c;
+      border-radius: calc(12 * var(--u));
+      padding: calc(10 * var(--u)) calc(14 * var(--u));
+      text-align: left; display: flex; flex-direction: column; gap: calc(3 * var(--u));
+    }
+    .field-row-label { font-size: calc(11 * var(--u)); color: #888; font-weight: 400; }
+    .field-row-value {
+      font-size: calc(12.5 * var(--u)); color: #e2e2e2; font-weight: 500;
+      word-break: break-all;
+      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      line-height: 1.35;
+    }
+    .transfer-sheet .btn-ghost {
+      margin-top: auto; width: 100%; max-width: calc(360 * var(--u));
+      flex: 0 0 auto; min-height: calc(48 * var(--u));
+    }
+
+    .confirm-sheet .sheet-body { justify-content: center; gap: calc(20 * var(--u)); }
+    .confirm-title {
+      margin: 0; font-size: calc(15.5 * var(--u));
+      font-weight: 600; color: #e6e6e6; text-align: center;
+    }
+    .confirm-buttons { display: flex; gap: calc(10 * var(--u)); width: 100%; max-width: calc(360 * var(--u)); margin-top: calc(14 * var(--u)); }
+
+    /* ===== Верхнее уведомление (popover, поверх всего) ===== */
+    .top-notice {
+      position: fixed;
+      inset: auto;
+      top: max(14px, env(safe-area-inset-top, 14px));
+      left: 50%;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+      height: auto;
+      margin: 0;
+      padding: calc(8 * var(--u)) calc(20 * var(--u)) calc(8 * var(--u)) calc(10 * var(--u));
+      border: 0;
+      border-radius: 999px;
+      background: #2e2e2e;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: calc(13 * var(--u));
+      font-weight: 500;
+      line-height: 1.3;
+      display: inline-flex;
+      align-items: center;
+      gap: calc(10 * var(--u));
+      box-shadow: 0 calc(12 * var(--u)) calc(32 * var(--u)) rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translate(-50%, calc(-140% - 20px));
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+      pointer-events: none;
+      overflow: visible;
+      z-index: 100000;
+    }
+    .top-notice:popover-open { display: inline-flex; }
+    .top-notice.on { opacity: 1; transform: translate(-50%, 0); }
+    .top-notice.error { background: #3a2424; }
+
+    .notice-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: calc(22 * var(--u)); height: calc(22 * var(--u));
+      border-radius: calc(6 * var(--u));
+      flex: none;
+      background: var(--green);
+      color: #0c331a;
+    }
+    .top-notice.error .notice-icon { background: #e53935; color: #ffffff; }
+    .notice-icon svg { width: 62%; height: 62%; display: block; }
+    .notice-text { display: block; text-align: left; }
+
+    @keyframes sheet-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes sheet-fall { from { transform: translateY(0); } to { transform: translateY(100%); } }
+    @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+
+    .toast {
+      position: fixed; z-index: 50; bottom: 24px; left: 50%;
+      transform: translate(-50%, 8px);
+      border: 1px solid #4a4456; background: #24202b; color: #ddd;
+      border-radius: 8px; padding: 10px 16px; font-size: 13px;
+      opacity: 0; visibility: hidden; transition: all 0.2s;
+    }
+    .toast.on { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+
+    @keyframes open { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 50% { opacity: 0.3; } }
+    @keyframes invoice-dot {
+      0%, 31%, 100% { transform: translateY(0); }
+      15.5% { transform: translateY(calc(-6 * var(--u))); }
+    }
+    @keyframes loading-spin { to { transform: rotate(360deg); } }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      margin: -1px; clip-path: inset(50%); overflow: hidden;
+    }
+
+    /* ===== Финальный экран "Всё получилось" ===== */
+    .paid-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: #f7f7f7;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: max(24px, env(safe-area-inset-top, 24px)) 24px max(24px, env(safe-area-inset-bottom, 24px));
+      text-align: center;
+      gap: clamp(16px, 4vw, 26px);
+      opacity: 0;
+      animation: paid-in 0.55s ease 0.05s both;
+    }
+    .paid-screen[hidden] { display: none !important; }
+
+    @keyframes paid-in { from { opacity: 0; } to { opacity: 1; } }
+
+    .paid-check {
+      width: clamp(84px, 24vw, 100px);
+      height: clamp(84px, 24vw, 100px);
+      border-radius: 50%;
+      background: #7ed957;
+      color: #ffffff;
+      display: grid;
+      place-items: center;
+      flex: none;
+      box-shadow: 0 10px 30px rgba(126, 217, 87, 0.35);
+      animation: paid-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+    }
+    .paid-check svg { width: 52%; height: 52%; display: block; }
+
+    @keyframes paid-pop {
+      0% { transform: scale(0.4); opacity: 0; }
+      60% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .paid-title {
+      font-family: inherit;
+      font-size: clamp(30px, 8vw, 38px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: #111;
+      margin: 0;
+      animation: paid-slide 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
+    }
+    .paid-text {
+      font-size: clamp(15px, 4.2vw, 17px);
+      line-height: 1.5;
+      color: #6e6e6e;
+      margin: 0;
+      max-width: 22em;
+      animation: paid-slide 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.38s both;
+    }
+    @keyframes paid-slide {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== Экран "Инвойс не найден" ===== */
+    .notfound-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: var(--bg);
+      color: #8c8c8c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(24px, env(safe-area-inset-top, 24px)) 24px max(24px, env(safe-area-inset-bottom, 24px));
+      text-align: center;
+      opacity: 0;
+      animation: paid-in 0.5s ease 0.05s both;
+    }
+    .notfound-screen[hidden] { display: none !important; }
+
+    .notfound-text {
+      font-family: inherit;
+      font-size: clamp(18px, 5vw, 22px);
+      font-weight: 500;
+      line-height: 1.4;
+      letter-spacing: 0.01em;
+      margin: 0;
+      color: #8c8c8c;
+    }
+
+    @media(prefers-reduced-motion: reduce) {
+      *, *:before, *:after { animation: none !important; transition: none !important; }
+      .page:not(.revealed) .checkout { opacity: 1; }
+      .paid-screen { opacity: 1; }
+      .notfound-screen { opacity: 1; }
+      .paid-check, .paid-title, .paid-text { opacity: 1; transform: none; }
+    }
+    </style>
+  </head>
+  <body>
+
+    <div class="fullscreen-loading" id="fullscreen-loading" aria-hidden="false">
+      <div class="loading-spinner" role="status" aria-label="Загрузка">
+        <span class="sr-only">Загрузка</span>
+      </div>
+    </div>
+
+    <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+
+    <div class="page" id="page">
+      <main class="checkout">
+        <header class="header">
+          <span class="logo">
+            <img src="pay.png" alt="Plata Пэй">
+          </span>
+        </header>
+
+        <div class="content">
+          <h1 class="amount">
+            <span class="amount-label" data-ru="Сумма к оплате" data-en="Amount due">Сумма к оплате</span>
+            <span class="amount-value">
+              <span class="cur">₽</span><span class="sum">—</span>
+            </span>
+          </h1>
+
+          <form id="payment-form">
+            <div class="method-wrap" id="method-wrap">
+              <button type="button" class="method-toggle" id="method-toggle" aria-expanded="false" aria-haspopup="listbox" aria-controls="methods">
+                <span>
+                  <span class="field-label" data-ru="Способ оплаты" data-en="Payment method">Способ оплаты</span>
+                  <span class="method-value" id="method-value">Не выбран</span>
+                </span>
+                <span class="chevron" aria-hidden="true"></span>
+              </button>
+              <div class="method-menu" id="method-menu" hidden>
+                <div class="tabs" role="tablist" aria-label="Категория оплаты">
+                  <button type="button" class="tab" id="tab-all" role="tab" aria-selected="true" data-category="all" data-ru="Все" data-en="All">Все</button>
+                  <button type="button" class="tab" id="tab-providers" role="tab" aria-selected="false" data-category="providers" data-ru="Провайдеры" data-en="Providers" tabindex="-1">Провайдеры</button>
+                  <button type="button" class="tab" id="tab-wallets" role="tab" aria-selected="false" data-category="wallets" data-ru="Кошельки" data-en="Wallets" tabindex="-1">Кошельки</button>
+                  <button type="button" class="tab" id="tab-connectors" role="tab" aria-selected="false" data-category="connectors" data-ru="Коннекторы" data-en="Connectors" tabindex="-1">Коннекторы</button>
+                  <button type="button" class="tab" id="tab-crypto" role="tab" aria-selected="false" data-category="crypto" data-ru="Криптовалюта" data-en="Crypto" tabindex="-1">Криптовалюта</button>
+                </div>
+                <div class="options" id="methods" role="listbox" aria-label="Способы оплаты">
+                  <div class="group" role="group" aria-labelledby="providers-title" data-group="providers">
+                    <h2 class="group-title" id="providers-title" data-ru="Провайдеры" data-en="Providers">Провайдеры</h2>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="cryptobot">
+                      <span class="coin"><img src="cryptobot.png" alt=""></span>
+                      <span><b>CryptoBot</b><small>Telegram</small></span>
+                    </button>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="xrocket">
+                      <span class="coin"><img src="xrocket.png" alt=""></span>
+                      <span><b>xRocket</b><small>Telegram</small></span>
+                    </button>
+                  </div>
+                  <div class="group" role="group" aria-labelledby="wallets-title" data-group="wallets">
+                    <h2 class="group-title" id="wallets-title" data-ru="Кошельки" data-en="Wallets">Кошельки</h2>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="keeper">
+                      <span class="coin"><img src="keeper.png" alt=""></span>
+                      <span><b>Keeper</b><small>Wallet</small></span>
+                    </button>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="trust">
+                      <span class="coin"><img src="trust.png" alt=""></span>
+                      <span><b>Trust</b><small>Wallet</small></span>
+                    </button>
+                  </div>
+                  <div class="group" role="group" aria-labelledby="connectors-title" data-group="connectors">
+                    <h2 class="group-title" id="connectors-title" data-ru="Коннекторы" data-en="Connectors">Коннекторы</h2>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="tonconnect">
+                      <span class="coin"><img src="tonconnect.png" alt=""></span>
+                      <span><b>TON Connect</b><small>Connector</small></span>
+                    </button>
+                  </div>
+                  <div class="group" role="group" aria-labelledby="crypto-title" data-group="crypto">
+                    <h2 class="group-title" id="crypto-title" data-ru="Криптовалюта" data-en="Cryptocurrency">Криптовалюта</h2>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="ethereum">
+                      <span class="coin"><img src="eth.png" alt=""></span>
+                      <span><b>Ethereum</b><small>ETH</small></span>
+                    </button>
+                    <button type="button" class="option" role="option" aria-selected="false" data-method="bnb">
+                      <span class="coin"><img src="bnb.png" alt=""></span>
+                      <span><b>BNB</b><small>BNB Chain</small></span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="method-wrap detail-wrap" id="detail-wrap" hidden>
+              <button type="button" class="method-toggle" id="detail-toggle" aria-expanded="false" aria-haspopup="listbox" aria-controls="detail-options">
+                <span>
+                  <span class="field-label" id="detail-label">Валюта</span>
+                  <span class="method-value" id="detail-value">Не выбрана</span>
+                </span>
+                <span class="chevron" aria-hidden="true"></span>
+              </button>
+              <div class="method-menu" id="detail-menu" hidden>
+                <div class="options" id="detail-options" role="listbox" aria-labelledby="detail-label"></div>
+              </div>
+            </div>
+
+            <input type="hidden" name="payment_method" id="selected-method">
+            <input type="hidden" name="network" id="selected-network">
+            <input type="hidden" name="currency" id="selected-currency">
+
+            <label class="email">
+              <span class="field-label" data-ru="Ваш e-mail" data-en="Your email">Ваш e-mail</span>
+              <input id="email" name="email" type="email" placeholder="example@mail.com" autocomplete="email" inputmode="email" aria-label="Ваш e-mail">
+            </label>
+
+            <section class="order">
+              <div class="order-text">
+                <b>Payment:</b>
+                <span data-ru="Пополнение по инвойсу –" data-en="Invoice payment –">Пополнение по инвойсу –</span>
+                <br>
+                <span class="order-id"></span>
+              </div>
+              <button class="order-details" type="button" id="order-details" aria-label="Детали инвойса">
+                <i></i><i></i><i></i>
+              </button>
+            </section>
+
+            <div class="actions">
+              <button class="continue" type="submit" data-ru="Продолжить" data-en="Continue">Продолжить</button>
+            </div>
+
+            <nav class="footer-nav" aria-label="Сайт и поддержка">
+              <button class="footer-button" type="button" id="payments">
+                <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"/>
+                  <path d="M3 12h18M12 3c3 3.1 4.3 6.1 4.3 9S15 17.9 12 21c-3-3.1-4.3-6.1-4.3-9S9 6.1 12 3Z"/>
+                </svg>
+                <span data-ru="Сайт" data-en="Website">Сайт</span>
+              </button>
+              <button class="footer-button" type="button" id="support">
+                <span class="navicon headset" aria-hidden="true"><i></i></span>
+                <span data-ru="Поддержка" data-en="Support">Поддержка</span>
+              </button>
+            </nav>
+
+            <p class="legal">
+              <span data-ru="Продолжая оплату, вы автоматически принимаете условия" data-en="By continuing, you agree to the">Продолжая оплату, вы автоматически принимаете условия</span>
+              <button class="textlink" id="terms" data-ru="публичной оферты" data-en="terms of service">публичной оферты</button>
+              <span data-ru="и" data-en="and">и</span>
+              <button class="textlink" id="privacy" data-ru="политики конфиденциальности." data-en="privacy policy.">политики конфиденциальности.</button>
+            </p>
+          </form>
+
+          <section class="payview" id="waiting" hidden>
+            <div id="payment-icon" class="coin payicon"></div>
+            <h2 data-ru="Ожидаем оплату" data-en="Waiting for payment">Ожидаем оплату</h2>
+            <p>
+              <span class="status-pulse" aria-hidden="true"></span>
+              <span data-ru="Статус обновится автоматически" data-en="Status updates automatically">Статус обновится автоматически</span>
+            </p>
+            <div class="payrow">
+              <span data-ru="Способ оплаты" data-en="Payment method">Способ оплаты</span>
+              <strong id="payment-method"></strong>
+            </div>
+            <button class="continue widebutton" id="open-payment"></button>
+            <div class="expiry">
+              <span data-ru="Счёт действителен ещё" data-en="Invoice expires in">Счёт действителен ещё</span>
+              <span id="timer">15:00</span>
+            </div>
+            <button class="backbutton" id="back" data-ru="← Изменить способ оплаты" data-en="← Change payment method">← Изменить способ оплаты</button>
+          </section>
+
+          <section class="payview" id="expired" hidden>
+            <h2 data-ru="Время оплаты истекло" data-en="Invoice expired">Время оплаты истекло</h2>
+            <p data-ru="Запросите новый счёт в магазине." data-en="Request a new invoice from the store.">Запросите новый счёт в магазине.</p>
+            <button class="continue widebutton" id="already-paid" data-ru="Я уже оплатил" data-en="I already paid">Я уже оплатил</button>
+            <button class="backbutton" id="restart" data-ru="Вернуться к началу" data-en="Start again">Вернуться к началу</button>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Финальный экран оплаты -->
+    <div class="paid-screen" id="paid-screen" hidden role="status" aria-live="polite">
+      <div class="paid-check" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4.5 12.5l5 5 10-11"/>
+        </svg>
+      </div>
+      <h1 class="paid-title">Всё получилось</h1>
+      <p class="paid-text">Платёж успешно получен. Спасибо за оплату!</p>
+    </div>
+
+    <!-- Экран "Инвойс не найден" -->
+    <div class="notfound-screen" id="notfound-screen" hidden role="status" aria-live="polite">
+      <p class="notfound-text">Инвойс не найден</p>
+    </div>
+
+    <!-- Нижние панели -->
+    <dialog class="sheet loading-sheet" id="loading-sheet" aria-label="Загрузка" tabindex="-1">
+      <div class="sheet-stage" data-stage="loading">
+        <div class="loading-spinner" role="status">
+          <span class="sr-only" data-ru="Загрузка" data-en="Loading">Загрузка</span>
+        </div>
+      </div>
+      <div class="sheet-stage" data-stage="tonconnect" hidden>
+        <div class="tc-view">
+          <img class="tc-icon" src="tonconnect.png" alt="">
+          <p class="tc-text">Открываем TON Connect…</p>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="sheet action-sheet" id="action-sheet" aria-label="Действия" tabindex="-1">
+      <div class="sheet-body">
+        <div class="dots-loader" id="action-dots" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </div>
+        <div class="ton-connect-info" id="ton-connect-info" hidden>
+          <div class="tc-balance">
+            <span class="tc-balance-label" data-ru="Баланс" data-en="Balance">Баланс</span>
+            <span id="tc-balance-value">—</span>
+            <span class="tc-balance-cur">GRAM</span>
+          </div>
+          <div class="tc-hash" id="tc-hash">—</div>
+        </div>
+        <div class="action-buttons" id="action-buttons">
+          <button class="btn-primary" type="button" id="btn-go">
+            <span>Перейти</span>
+            <svg class="arrow-up-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 17 17 7"/>
+              <path d="M9 7h8v8"/>
+            </svg>
+          </button>
+          <button class="btn-ghost" type="button" id="btn-check">Проверить</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="sheet transfer-sheet" id="transfer-sheet" aria-label="Перевод" tabindex="-1">
+      <div class="sheet-body">
+        <div class="qr-wrap">
+          <img id="qr-img" alt="QR-код для оплаты">
+        </div>
+        <div class="field-list">
+          <div class="field-row">
+            <span class="field-row-label" data-ru="Адрес перевода" data-en="Transfer address">Адрес перевода</span>
+            <span class="field-row-value" id="transfer-address"></span>
+          </div>
+          <div class="field-row">
+            <span class="field-row-label" data-ru="Сумма перевода" data-en="Transfer amount">Сумма перевода</span>
+            <span class="field-row-value" id="transfer-amount"></span>
+          </div>
+        </div>
+        <button class="btn-ghost" type="button" id="btn-check-transfer">Проверить</button>
+      </div>
+    </dialog>
+
+    <dialog class="sheet confirm-sheet" id="confirm-sheet" aria-label="Отмена операции" tabindex="-1">
+      <div class="sheet-body">
+        <p class="confirm-title" data-ru="Отменить операцию?" data-en="Cancel the operation?">Отменить операцию?</p>
+        <div class="confirm-buttons">
+          <button class="btn-danger" type="button" id="btn-cancel-op">Отменить</button>
+          <button class="btn-dark" type="button" id="btn-back-op">Назад</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Правовая информация (оферта / политика) -->
+    <dialog class="sheet legal-sheet" id="legal-sheet" aria-label="Правовая информация" tabindex="-1">
+      <div class="sheet-body">
+        <div class="legal-content" id="legal-content"></div>
+        <button class="legal-close" type="button" id="legal-close">Закрыть</button>
+      </div>
+    </dialog>
+
+    <!-- Верхнее уведомление (popover — рисуется поверх любого modal) -->
+    <div class="top-notice" id="top-notice" role="status" aria-live="polite" popover="manual">
+      <span class="notice-icon" id="notice-icon" aria-hidden="true"></span>
+      <span class="notice-text" id="notice-text"></span>
+    </div>
+
+    <dialog id="dialog">
+      <h2 id="dialog-title"></h2>
+      <div id="dialog-body"></div>
+      <button class="close" id="close-dialog" data-ru="Закрыть" data-en="Close">Закрыть</button>
+    </dialog>
+
+    <div class="toast" role="status" aria-live="polite" id="toast"></div>
+
+  <script>
+  (function () {
+    var SHOW_DEBUG = true;
+    var lines = [], box = null;
+    function render() {
+      if (!SHOW_DEBUG || !lines.length || !document.body) return;
+      if (!box) {
+        box = document.createElement('div');
+        box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#3a1414;color:#ffd2d2;border:1px solid #7a2a2a;border-radius:10px;padding:10px 12px;font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-all;max-height:40vh;overflow:auto';
+        box.addEventListener('click', function () { box.style.display = 'none'; lines = []; });
+        document.body.appendChild(box);
+      }
+      box.style.display = 'block';
+      box.textContent = 'Отладка (тап — скрыть):\n' + lines.slice(-6).join('\n');
+    }
+    function add(text) {
+      text = String(text);
+      if (/TON_CONNECT_SDK/.test(text)) return;
+      if (lines.indexOf(text) === -1) lines.push(text);
+      render();
+    }
+    window.__plataReport = add;
+    window.addEventListener('error', function (e) {
+      add((e.message || 'Script error') + (e.lineno ? ' (строка ' + e.lineno + ':' + (e.colno || 0) + ')' : ''));
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      add('Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+    });
+  })();
+  </script>
+
+  <script>
+(() => {
+  'use strict';
+  const $ = selector => document.querySelector(selector);
+  const $$ = selector => [...document.querySelectorAll(selector)];
+  let selected = null, detail = null;
+
+  let invoice = null;
+  let order = null;
+
+  /* ===== Экранирование HTML (для безопасной вставки в innerHTML) ===== */
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function reportDebug(tag, err) {
+    try {
+      if (typeof window.__plataReport === 'function') {
+        window.__plataReport(tag + ': ' + ((err && err.message) || err));
+      }
+    } catch (e) {}
+  }
+
+  /* ===== Orders API ===== */
+  const ORDERS_API_URL = 'https://orders-api.bratiah571.workers.dev';
+  const ORDERS_API_TOKEN = 'ord_sk_7f3a9c2e8b1d4f6a5e0c9d8b7a6f4e2c1d3b5a7';
+  const ORDERS_FETCH_TIMEOUT = 8000;
+
+  let INVOICE_ORDER_ID = '';
+  let INVOICE_DESCRIPTION = 'Plata Pay invoice';
+
+  function getOrderIdFromUrl() {
+    let path = window.location.pathname || '/';
+    path = path.replace(/^\/+/, '').replace(/\/+$/, '');
+    if (!path) return null;
+    if (path.includes('.')) return null;
+    if (/^(index|home)$/i.test(path)) return null;
+    try { return decodeURIComponent(path); } catch (e) { return path; }
+  }
+
+  async function loadOrder(orderId) {
+    if (!orderId) { reportDebug('Orders API', new Error('пустой orderId')); return null; }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ORDERS_FETCH_TIMEOUT);
+    try {
+      const res = await fetch(ORDERS_API_URL + '?id=' + encodeURIComponent(orderId), {
+        headers: {
+          'Authorization': 'Bearer ' + ORDERS_API_TOKEN,
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      });
+      if (!res.ok) {
+        reportDebug('Orders API', new Error('HTTP ' + res.status + ' для id=' + orderId));
+        return null;
+      }
+      const data = await res.json();
+      if (!data || data.error || !data.id) {
+        reportDebug('Orders API', new Error('пустой/некорректный ответ для id=' + orderId));
+        return null;
+      }
+      return data;
+    } catch (e) {
+      reportDebug('Orders API fetch', e);
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /* Меняем статус заказа на paid в orders-api (только после подтверждённой оплаты) */
+  async function markOrderPaidInAPI(orderId) {
+    if (!orderId) return false;
+    try {
+      const res = await fetch(
+        ORDERS_API_URL + '?id=' + encodeURIComponent(orderId) + '&status=paid',
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': 'Bearer ' + ORDERS_API_TOKEN,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      return res.ok;
+    } catch (e) {
+      reportDebug('Orders API PUT', e);
+      return false;
+    }
+  }
+
+  function applyOrderToUI(o) {
+    if (!o) return;
+    if (o.amount != null) {
+      const sumEl = $('.amount-value .sum');
+      if (sumEl) sumEl.textContent = String(o.amount);
+    }
+    if (o.id != null) {
+      const idEl = $('.order-id');
+      if (idEl) idEl.textContent = String(o.id);
+    }
+  }
+
+  const currencyLists = {
+    cryptobot: [
+      { id: 'usdt', name: 'Tether',   ticker: 'USDT', logo: 'usdt.png' },
+      { id: 'btc',  name: 'Bitcoin',  ticker: 'BTC',  logo: 'btc.png'  },
+      { id: 'eth',  name: 'Ethereum', ticker: 'ETH',  logo: 'eth.png'  },
+      { id: 'sol',  name: 'Solana',   ticker: 'SOL',  logo: 'sol.png'  },
+      { id: 'trx',  name: 'TRON',     ticker: 'TRX',  logo: 'trx.png'  },
+      { id: 'bnb',  name: 'BNB',      ticker: 'BNB',  logo: 'bnb.png'  }
+    ],
+    xrocket: [
+      { id: 'usdt', name: 'Tether',   ticker: 'USDT', logo: 'usdt.png' },
+      { id: 'btc',  name: 'Bitcoin',  ticker: 'BTC',  logo: 'btc.png'  },
+      { id: 'eth',  name: 'Ethereum', ticker: 'ETH',  logo: 'eth.png'  },
+      { id: 'sol',  name: 'Solana',   ticker: 'SOL',  logo: 'sol.png'  },
+      { id: 'trx',  name: 'TRON',     ticker: 'TRX',  logo: 'trx.png'  },
+      { id: 'bnb',  name: 'BNB',      ticker: 'BNB',  logo: 'bnb.png'  }
+    ],
+    keeper: [{ id: 'ton', name: 'GRAM', ticker: 'TON', logo: 'ton.png' }],
+    trust: [
+      { id: 'bnb', name: 'BNB',      ticker: 'BNB', logo: 'bnb.png' },
+      { id: 'eth', name: 'Ethereum', ticker: 'ETH', logo: 'eth.png' }
+    ]
+  };
+
+  const isProvider = () => selected === 'cryptobot' || selected === 'xrocket';
+  const isConnector = () => selected === 'tonconnect';
+  const isCrypto = () => selected === 'ethereum' || selected === 'bnb';
+  const isTrust = () => selected === 'trust';
+
+  const coinInfo = id => {
+    const option = $('[data-method="' + id + '"]');
+    return {
+      id,
+      name: option.querySelector('b').textContent.trim(),
+      ticker: option.querySelector('small').textContent.trim()
+    };
+  };
+
+  const items = () => currencyLists[selected] || [];
+
+  function toggle(kind, open, focus = false) {
+    $('#' + kind + '-menu').hidden = !open;
+    $('#' + kind + '-toggle').setAttribute('aria-expanded', String(open));
+    if (open) {
+      const other = kind === 'method' ? 'detail' : 'method';
+      toggle(other, false);
+      $('#' + kind + '-toggle').classList.remove('invalid');
+      if (focus) {
+        const menu = $('#' + kind + '-menu');
+        [...menu.querySelectorAll('.option')].find(o => !o.closest('[hidden]'))?.focus();
+      }
+    }
+  }
+
+  function renderDetail() {
+    const list = items();
+    $('#detail-wrap').hidden = !selected || list.length === 0;
+
+    if (!list.length) {
+      $('#selected-method').value = selected || '';
+      $('#selected-network').value = '';
+      $('#selected-currency').value = '';
+      return;
+    }
+
+    $('#detail-label').textContent = 'Валюта';
+    const chosen = list.find(item => item.id === detail);
+    $('#detail-value').textContent = chosen ? chosen.ticker : 'Не выбрана';
+    $('#detail-toggle').classList.toggle('chosen', !!chosen);
+    $('#detail-options').replaceChildren();
+
+    for (const item of list) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'option';
+      button.dataset.detail = item.id;
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', String(item.id === detail));
+
+      const icon = document.createElement('span');
+      icon.className = 'coin';
+      const img = document.createElement('img');
+      img.src = item.logo;
+      img.alt = '';
+      icon.append(img);
+      button.append(icon);
+
+      const text = document.createElement('span');
+      const name = document.createElement('b');
+      const ticker = document.createElement('small');
+      name.textContent = item.name;
+      ticker.textContent = item.ticker;
+      text.append(name, ticker);
+      button.append(text);
+
+      button.onclick = () => {
+        detail = item.id;
+        renderDetail();
+        toggle('detail', false);
+        $('#detail-toggle').classList.remove('invalid');
+        $('#detail-toggle').focus();
+        saveState();
+      };
+      $('#detail-options').append(button);
+    }
+
+    $('#selected-method').value = selected || '';
+    $('#selected-network').value = '';
+    $('#selected-currency').value = chosen ? chosen.ticker : '';
+  }
+
+  function select(id, opts = {}) {
+    if (id !== selected) detail = null;
+    selected = id;
+
+    $$('[data-method]').forEach(o => o.setAttribute('aria-selected', String(o.dataset.method === id)));
+
+    const slot = $('#method-toggle > span:first-child');
+    slot.querySelector('.selected-coin')?.remove();
+    if (!slot.querySelector('.selected-text')) {
+      const text = document.createElement('span');
+      text.className = 'selected-text';
+      while (slot.firstChild) text.append(slot.firstChild);
+      slot.append(text);
+    }
+    const icon = $('[data-method="' + id + '"] .coin').cloneNode(true);
+    icon.classList.add('selected-coin');
+    slot.prepend(icon);
+
+    $('#method-value').textContent = coinInfo(id).name;
+    $('#method-toggle').classList.add('chosen');
+    $('#method-toggle').classList.remove('invalid');
+    toggle('method', false);
+    toggle('detail', false);
+    renderDetail();
+    if (!opts.silent) $('#method-toggle').focus();
+    saveState();
+  }
+
+  for (const kind of ['method', 'detail']) {
+    $('#' + kind + '-toggle').onclick = () => toggle(kind, $('#' + kind + '-menu').hidden);
+    $('#' + kind + '-toggle').onkeydown = e => {
+      if (['ArrowDown', 'ArrowUp'].includes(e.key)) {
+        e.preventDefault();
+        toggle(kind, true, true);
+      }
+    };
+    $('#' + kind + '-menu').addEventListener('keydown', e => {
+      if (!e.target.matches('.option') || !['ArrowDown','ArrowUp','Home','End'].includes(e.key)) return;
+      e.preventDefault();
+      const options = [...e.currentTarget.querySelectorAll('.option')].filter(o => !o.closest('[hidden]'));
+      const index = options.indexOf(document.activeElement);
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1
+        : (index + (e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      options[next]?.focus();
+    });
+  }
+
+  $$('[data-method]').forEach(o => o.onclick = () => select(o.dataset.method));
+
+  $$('[data-category]').forEach(tab => tab.onclick = () => {
+    const category = tab.dataset.category;
+    $$('[data-category]').forEach(t => {
+      t.setAttribute('aria-selected', String(t === tab));
+      t.tabIndex = t === tab ? 0 : -1;
+    });
+    $$('[data-group]').forEach(g => g.hidden = category !== 'all' && g.dataset.group !== category);
+    $('#methods').scrollTop = 0;
+  });
+
+  document.addEventListener('click', e => {
+    for (const kind of ['method', 'detail']) {
+      if (!$('#' + kind + '-wrap').contains(e.target)) toggle(kind, false);
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    for (const kind of ['method', 'detail']) {
+      if (!$('#' + kind + '-menu').hidden) {
+        toggle(kind, false);
+        $('#' + kind + '-toggle').focus();
+      }
+    }
+  });
+
+  /* ===== Конвертер (нужен только для Keeper/Trust/ETH/BNB) ===== */
+  const CONVERTER_BASE = 'https://crypto-converter.plata-cf.workers.dev';
+  const CONVERT_CACHE_PREFIX = 'plata-convert-v1:';
+  const CONVERT_CACHE_TTL = 5 * 60 * 1000;
+  const CONVERT_TIMEOUT = 15000;
+
+  /* ===== Проверка криптоплатежа (ETH/BNB/Trust) ===== */
+  const CRYPTO_VERIFY_URL = 'https://old-waterfall-5a8b.morning-lake-bc56.workers.dev/';
+  const CRYPTO_VERIFY_TIMEOUT = 30000;
+
+  function getInvoiceRub() {
+    const el = $('.amount-value .sum');
+    if (!el) return 0;
+    const n = Number(String(el.textContent).replace(/[^\d.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  async function explainFetchFailure(url, label, err) {
+    let reachable = false;
+    try {
+      await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+      reachable = true;
+    } catch (e) {}
+    const reason = reachable
+      ? 'сервер отвечает, но браузер блокирует запрос (нет CORS-заголовков в воркере)'
+      : 'сервер недоступен из этой сети (VPN / DNS / блокировка)';
+    return label + ': ' + reason + ' [' + ((err && err.message) || err) + ']';
+  }
+
+  function convertCacheKey(from, to, amount) {
+    return CONVERT_CACHE_PREFIX + String(from).toUpperCase() + ':' + String(to).toUpperCase() + ':' + amount;
+  }
+  function readConvertCache(from, to, amount) {
+    try {
+      const key = convertCacheKey(from, to, amount);
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.ts !== 'number' || !parsed.data) {
+        try { localStorage.removeItem(key); } catch (e) {}
+        return null;
+      }
+      if (Date.now() - parsed.ts > CONVERT_CACHE_TTL) {
+        try { localStorage.removeItem(key); } catch (e) {}
+        return null;
+      }
+      return parsed.data;
+    } catch (e) { return null; }
+  }
+  function writeConvertCache(from, to, amount, data) {
+    try {
+      const key = convertCacheKey(from, to, amount);
+      localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
+    } catch (e) {}
+  }
+
+  async function convertCurrency(from, to, amount) {
+    const cached = readConvertCache(from, to, amount);
+    if (cached) return cached;
+
+    const url = CONVERTER_BASE
+      + '/convert?from=' + encodeURIComponent(from)
+      + '&to='   + encodeURIComponent(to)
+      + '&amount=' + encodeURIComponent(amount);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CONVERT_TIMEOUT);
+    let res;
+    try {
+      res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
+    } catch (err) {
+      if (err && err.name === 'AbortError') throw err;
+      throw new Error(await explainFetchFailure(CONVERTER_BASE + '/', 'Конвертер курса', err));
+    } finally { clearTimeout(timer); }
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+
+    if (!res.ok || !data || !data.ok) {
+      const msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
+      throw new Error(msg);
+    }
+    writeConvertCache(from, to, amount, data);
+    return data;
+  }
+
+  /* ===== Запрос к воркеру проверки криптоплатежа ===== */
+  async function checkCryptoPayment(address, currency, amount) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CRYPTO_VERIFY_TIMEOUT);
+    let res;
+    try {
+      res = await fetch(CRYPTO_VERIFY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: address,
+          currency: currency,
+          amount: String(amount)
+        }),
+        signal: controller.signal
+      });
+    } catch (err) {
+      if (err && err.name === 'AbortError') throw err;
+      throw new Error(await explainFetchFailure(CRYPTO_VERIFY_URL, 'Проверка криптоплатежа', err));
+    } finally { clearTimeout(timer); }
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+    return data && data.status === 'OK' ? 'OK' : 'NOT';
+  }
+
+  function toPlainAmountString(num) {
+    if (!Number.isFinite(num) || num <= 0) return '0';
+    let s = num.toFixed(18);
+    if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s || '0';
+  }
+
+  function getTargetTicker() {
+    if (selected === 'ethereum') return 'ETH';
+    if (selected === 'bnb')      return 'BNB';
+    if (selected === 'keeper')   return 'TON';
+    if (selected === 'trust')    return detail === 'bnb' ? 'BNB' : 'ETH';
+    if (isProvider()) {
+      const chosen = items().find(item => item.id === detail);
+      return chosen ? chosen.ticker : null;
+    }
+    return null;
+  }
+
+  function formatCryptoAmount(value, ticker) {
+    const num = Number(value) || 0;
+    let decimals;
+    if (num >= 1000)      decimals = 2;
+    else if (num >= 1)    decimals = 4;
+    else if (num >= 0.01) decimals = 6;
+    else                  decimals = 8;
+
+    let s = num.toFixed(decimals);
+    if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    const shownTicker = ticker === 'TON' ? 'GRAM' : ticker;
+    return s + ' ' + shownTicker;
+  }
+
+  /* ===== Баланс TON ===== */
+  const TON_API_BASE = 'https://toncenter.com/api/v2';
+
+  async function fetchTonBalanceNano(address) {
+    const url = TON_API_BASE + '/getAddressBalance?address=' + encodeURIComponent(address);
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('TON API HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || !data.ok) throw new Error((data && data.error) || 'TON API request failed');
+    return String(data.result || '0');
+  }
+
+  function formatNano(value, precision = 4) {
+    let n;
+    try { n = BigInt(value || '0'); } catch (e) { n = 0n; }
+    const negative = n < 0n;
+    const absolute = negative ? -n : n;
+    const whole = absolute / 1000000000n;
+    const fraction = (absolute % 1000000000n)
+      .toString().padStart(9, '0').slice(0, precision).replace(/0+$/, '');
+    return (negative ? '-' : '') + whole.toString() + (fraction ? '.' + fraction : '');
+  }
+
+  /* ===== Панели ===== */
+  const loadingSheet = $('#loading-sheet');
+  const actionSheet = $('#action-sheet');
+  const transferSheet = $('#transfer-sheet');
+  const confirmSheet = $('#confirm-sheet');
+  const legalSheet = $('#legal-sheet');
+  const topNotice = $('#top-notice');
+  const noticeIcon = $('#notice-icon');
+  const noticeText = $('#notice-text');
+  const sheetBackdrop = $('#sheet-backdrop');
+  const page = $('#page');
+  const paidScreen = $('#paid-screen');
+  const notfoundScreen = $('#notfound-screen');
+  const loadingStages = [...loadingSheet.querySelectorAll('.sheet-stage')];
+
+  let loadingLocked = false;
+  let confirmOrigin = null;
+  let noticeTimer = null;
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l5 5L20 7.5"/></svg>';
+  const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+  const transferAddresses = {
+    ethereum: '0x8f3A2c1D9E5b7F4a6C2d8E1b1b9A3F5c7D4e2B6a8C',
+    bnb:      '0xB7d4E2a6C8f1A3b5D9c7E2f4B6a8C1d3E5F7a9b2'
+  };
+  const transferTickers = { ethereum: 'ETH', bnb: 'BNB' };
+
+  const TON_RECEIVER_ADDRESS = 'UQAQ-6h6ZwynqiC-hvcmfKd-LpcPgpWMTHqxxWuIcUn2XY6W';
+
+  function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent);
+  }
+
+  /* Адрес для Trust-перевода: тот же, что и для ETH/BNB */
+  function getTrustAddress(ticker) {
+    return String(ticker).toUpperCase() === 'BNB'
+      ? transferAddresses.bnb
+      : transferAddresses.ethereum;
+  }
+
+  function buildTrustDeepLink(amount, ticker) {
+    const address = getTrustAddress(ticker);
+    const params = new URLSearchParams();
+    params.set('amount', String(BigInt(Math.round(amount * 1e18))));
+    if (INVOICE_DESCRIPTION) params.set('text', INVOICE_DESCRIPTION);
+    return 'trust://transfer/' + address + '?' + params.toString();
+  }
+
+  async function buildWalletDeepLink(method) {
+    const params = new URLSearchParams();
+
+    if (method === 'keeper') {
+      const data = await convertCurrency('RUB', 'TON', getInvoiceRub());
+      const amountTon = Number(data && data.result);
+      if (!Number.isFinite(amountTon) || amountTon <= 0) {
+        throw new Error('Не удалось рассчитать сумму');
+      }
+      params.set('amount', String(Math.round(amountTon * 1e9)));
+      if (INVOICE_DESCRIPTION) params.set('text', INVOICE_DESCRIPTION);
+      return 'keeper://transfer/' + TON_RECEIVER_ADDRESS + '?' + params.toString();
+    }
+
+    if (method === 'trust') {
+      const ticker = detail === 'bnb' ? 'BNB' : 'ETH';
+      const data = await convertCurrency('RUB', ticker, getInvoiceRub());
+      const amount = Number(data && data.result);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Не удалось рассчитать сумму');
+      }
+      return buildTrustDeepLink(amount, ticker);
+    }
+
+    return 'ton://transfer/' + TON_RECEIVER_ADDRESS + '?' + params.toString();
+  }
+
+  async function sendTonConnectPayment() {
+    if (!tonConnectUI || !tonConnectUI.connected) throw new Error('Кошелёк не подключён');
+    const rub = getInvoiceRub();
+    if (!rub) throw new Error('Сумма инвойса не определена');
+    const data = await convertCurrency('RUB', 'TON', rub);
+    const amountTon = Number(data && data.result);
+    if (!Number.isFinite(amountTon) || amountTon <= 0) throw new Error('Не удалось рассчитать сумму');
+    const nano = BigInt(Math.round(amountTon * 1e9)).toString();
+    const transaction = {
+      validUntil: Math.floor(Date.now() / 1000) + 300,
+      network: '-239',
+      messages: [{ address: TON_RECEIVER_ADDRESS, amount: nano }]
+    };
+    return await tonConnectUI.sendTransaction(transaction);
+  }
+
+  function friendlyTonError(raw) {
+    const s = String(raw || '').toLowerCase();
+    if (!s) return 'Не удалось отправить транзакцию. Попробуйте ещё раз.';
+    if (/reject|declined|user.*cancel|denied|cancell?ed by user/.test(s))
+      return 'Оплата не подтверждена. Проверьте баланс кошелька и повторите оплату.';
+    if (/insufficient|not enough|low balance|balance too low|недостаточно/.test(s))
+      return 'Недостаточно средств на кошельке для оплаты.';
+    if (/expired|timeout|timed out|validuntil/.test(s))
+      return 'Время подтверждения истекло. Откройте кошелёк и попробуйте снова.';
+    if (/network|connection|fetch|offline|internet/.test(s))
+      return 'Ошибка соединения. Проверьте интернет и повторите попытку.';
+    if (/not connected|wallet.*not.*connect|no.*wallet/.test(s))
+      return 'Кошелёк не подключён. Подключите кошелёк и повторите попытку.';
+    if (/manifest/.test(s))
+      return 'Не удалось проверить приложение. Обновите страницу и повторите.';
+    return 'Не удалось отправить транзакцию. Попробуйте позже.';
+  }
+
+  /* ===== Persistence ===== */
+  const STORAGE_KEY = 'plata-pay-state-v2:' + (getOrderIdFromUrl() || '_');
+  try { localStorage.removeItem('plata-pay-state-v1'); } catch (e) {}
+  let persistenceReady = false;
+
+  function saveState() {
+    if (!persistenceReady) return;
+    try {
+      const openSheetEl = [actionSheet, transferSheet].find(s => s.open);
+      const state = {
+        selected,
+        detail,
+        email: $('#email').value || '',
+        openSheetId: openSheetEl ? openSheetEl.id : null,
+        actionLabel: $('#btn-go span')?.textContent || null,
+        showCheck: !$('#btn-check').hidden,
+        invoice: invoice || null,
+        orderId: order && order.id ? String(order.id) : null,
+        paid: !paidScreen.hidden
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {}
+  }
+
+  function readSavedState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function getConnectedAddress() {
+    if (!tonConnectUI || !tonConnectUI.connected) return null;
+    const w = tonConnectUI.wallet;
+    return extractWalletAddress(w) || extractWalletAddress(connectedWallet);
+  }
+
+  function restoreState() {
+    const state = readSavedState();
+    if (!state) { persistenceReady = true; return; }
+    if (state.orderId && order && order.id != null && String(state.orderId) !== String(order.id)) {
+      persistenceReady = true;
+      return;
+    }
+
+    if (typeof state.email === 'string') $('#email').value = state.email;
+
+    if (state.selected && $('[data-method="' + state.selected + '"]')) {
+      select(state.selected, { silent: true });
+    }
+    if (state.detail && items().some(i => i.id === state.detail)) {
+      detail = state.detail;
+      renderDetail();
+    }
+    if (isProvider() && state.invoice && state.invoice.provider === selected && state.invoice.id != null) {
+      invoice = state.invoice;
+    }
+
+    if (state.paid === true || (isProvider() && invoice && invoice.status === 'paid')) {
+      if (invoice) invoice.status = 'paid';
+      showPaidView();
+      persistenceReady = true;
+      return;
+    }
+    if (isProvider() && invoice && invoice.status === 'expired') {
+      showExpiredView();
+      persistenceReady = true;
+      return;
+    }
+
+    if (state.openSheetId === 'action-sheet' && (!isProvider() || (invoice && invoice.status === 'active'))) {
+      const addr = getConnectedAddress();
+      openActionSheet({
+        showCheck: state.showCheck !== false,
+        label: state.actionLabel || 'Перейти',
+        tonInfo: addr ? { address: addr } : null
+      });
+    } else if (state.openSheetId === 'transfer-sheet' && isCrypto()) {
+      openTransferSheet();
+    }
+    persistenceReady = true;
+  }
+
+  $('#email').addEventListener('input', saveState);
+
+  function openSheet(el) {
+    if (el.open) return;
+    if (el === loadingSheet) {
+      sheetBackdrop.hidden = false;
+      sheetBackdrop.classList.remove('closing');
+      page.setAttribute('inert', '');
+      el.show();
+    } else {
+      el.showModal();
+    }
+    saveState();
+  }
+
+  function closeSheetInstant(el) {
+    if (!el.open) return;
+    el.close();
+    if (el === loadingSheet) {
+      sheetBackdrop.hidden = true;
+      sheetBackdrop.classList.remove('closing');
+      page.removeAttribute('inert');
+    }
+    saveState();
+  }
+
+  function closeSheetAnimated(el) {
+    return new Promise(resolve => {
+      if (!el.open) return resolve();
+      el.classList.add('closing');
+      if (el === loadingSheet) sheetBackdrop.classList.add('closing');
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.classList.remove('closing');
+        el.close();
+        if (el === loadingSheet) {
+          sheetBackdrop.hidden = true;
+          sheetBackdrop.classList.remove('closing');
+          page.removeAttribute('inert');
+        }
+        saveState();
+        resolve();
+      };
+      el.addEventListener('animationend', finish, { once: true });
+      setTimeout(finish, 500);
+    });
+  }
+
+  function setLoadingStage(name) {
+    for (const stage of loadingStages) stage.hidden = stage.dataset.stage !== name;
+    if (name === 'tonconnect') {
+      sheetBackdrop.hidden = true;
+    } else if (loadingSheet.open) {
+      sheetBackdrop.hidden = false;
+    }
+  }
+
+  /* ===== Верхнее уведомление ===== */
+  function showTopNotice(text, type = 'ok') {
+    clearTimeout(noticeTimer);
+    noticeIcon.innerHTML = type === 'error' ? ICON_X : ICON_CHECK;
+    noticeText.textContent = text;
+    topNotice.classList.toggle('error', type === 'error');
+
+    try {
+      if (typeof topNotice.showPopover === 'function') {
+        if (!topNotice.matches(':popover-open')) topNotice.showPopover();
+      } else {
+        topNotice.style.display = 'inline-flex';
+      }
+    } catch (e) {
+      topNotice.style.display = 'inline-flex';
+    }
+
+    topNotice.classList.remove('on');
+    void topNotice.offsetWidth;
+    topNotice.classList.add('on');
+
+    noticeTimer = setTimeout(() => {
+      topNotice.classList.remove('on');
+      setTimeout(() => {
+        try {
+          if (typeof topNotice.hidePopover === 'function' && topNotice.matches(':popover-open')) {
+            topNotice.hidePopover();
+          } else {
+            topNotice.style.display = 'none';
+          }
+        } catch (e) {}
+      }, 550);
+    }, 3200);
+  }
+
+  /* ===== Ограничение запросов (анти-спам) ===== */
+  const RATE_LIMIT_MS = 5000;
+  const rateLimitMap = new Map();
+
+  function rateLimit(key, ms = RATE_LIMIT_MS) {
+    const now = Date.now();
+    const last = rateLimitMap.get(key) || 0;
+    const delta = now - last;
+    if (delta < ms) {
+      const remain = Math.max(1, Math.ceil((ms - delta) / 1000));
+      showTopNotice('Слишком часто. Подождите ' + remain + ' с', 'error');
+      return false;
+    }
+    rateLimitMap.set(key, now);
+    return true;
+  }
+
+  /* ===== Управление панелями ===== */
+  loadingSheet.addEventListener('click', e => {
+    if (!loadingLocked) return;
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  loadingSheet.addEventListener('cancel', e => {
+    if (loadingLocked) e.preventDefault();
+  });
+
+  actionSheet.addEventListener('click', e => {
+    if (e.target !== e.currentTarget) return;
+    const r = actionSheet.getBoundingClientRect();
+    const inside = e.clientY >= r.top && e.clientX >= r.left && e.clientX <= r.right;
+    if (inside) return;
+    openConfirm(actionSheet);
+  });
+  actionSheet.addEventListener('cancel', e => {
+    e.preventDefault();
+    openConfirm(actionSheet);
+  });
+
+  transferSheet.addEventListener('click', e => {
+    if (e.target !== e.currentTarget) return;
+    const r = transferSheet.getBoundingClientRect();
+    const inside = e.clientY >= r.top && e.clientX >= r.left && e.clientX <= r.right;
+    if (inside) return;
+    openConfirm(transferSheet);
+  });
+  transferSheet.addEventListener('cancel', e => {
+    e.preventDefault();
+    openConfirm(transferSheet);
+  });
+
+  function openConfirm(origin) {
+    confirmOrigin = origin;
+    if (origin && origin.open) closeSheetInstant(origin);
+    openSheet(confirmSheet);
+  }
+
+  confirmSheet.addEventListener('click', e => {
+    if (e.target !== e.currentTarget) return;
+    const r = confirmSheet.getBoundingClientRect();
+    const inside = e.clientY >= r.top && e.clientX >= r.left && e.clientX <= r.right;
+    if (inside) return;
+    restoreFromConfirm();
+  });
+  confirmSheet.addEventListener('cancel', e => {
+    e.preventDefault();
+    restoreFromConfirm();
+  });
+
+  function restoreFromConfirm() {
+    const origin = confirmOrigin;
+    confirmOrigin = null;
+    closeSheetInstant(confirmSheet);
+    if (origin) openSheet(origin);
+  }
+
+  function cancelOperation() {
+    confirmOrigin = null;
+    loadingLocked = false;
+    stopInvoicePolling();
+    invoice = null;
+    closeSheetInstant(confirmSheet);
+    closeSheetInstant(loadingSheet);
+    closeSheetInstant(actionSheet);
+    closeSheetInstant(transferSheet);
+    saveState();
+  }
+
+  $('#btn-back-op').onclick = restoreFromConfirm;
+  $('#btn-cancel-op').onclick = cancelOperation;
+
+  /* ===== Правовая панель (оферта / политика) ===== */
+  let legalTextPromise = null;
+  function loadLegalText() {
+    if (!legalTextPromise) {
+      legalTextPromise = fetch('./no.txt', { cache: 'no-cache' })
+        .then(res => {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        })
+        .catch(() => null);
+    }
+    return legalTextPromise;
+  }
+
+  function inlineMarkdown(escaped) {
+    let s = escaped;
+    s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__([^_\n]+?)__/g, '<strong>$1</strong>');
+    s = s.replace(/(^|[^\w*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    s = s.replace(/(^|[^\w_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
+    s = s.replace(/\[([^\]\n]+?)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return s;
+  }
+
+  function renderLegalMarkdown(rawText) {
+    const escaped = escapeHtml(rawText);
+    const lines = escaped.split(/\r?\n/);
+    const out = [];
+    let inList = false;
+
+    const closeList = () => {
+      if (inList) { out.push('</ul>'); inList = false; }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].replace(/\s+$/g, '');
+      const trimmed = line.trim();
+
+      if (!trimmed) { closeList(); continue; }
+
+      let m;
+      if ((m = trimmed.match(/^#\s+(.+)$/))) {
+        closeList(); out.push('<h1>' + inlineMarkdown(m[1]) + '</h1>'); continue;
+      }
+      if ((m = trimmed.match(/^##\s+(.+)$/))) {
+        closeList(); out.push('<h2>' + inlineMarkdown(m[1]) + '</h2>'); continue;
+      }
+      if ((m = trimmed.match(/^###\s+(.+)$/))) {
+        closeList(); out.push('<h3>' + inlineMarkdown(m[1]) + '</h3>'); continue;
+      }
+      if ((m = trimmed.match(/^[-*•]\s+(.+)$/))) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        out.push('<li>' + inlineMarkdown(m[1]) + '</li>'); continue;
+      }
+      if ((m = trimmed.match(/^\d+[.)]\s+(.+)$/))) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        out.push('<li>' + inlineMarkdown(m[1]) + '</li>'); continue;
+      }
+      if (/^[-_=]{3,}$/.test(trimmed)) {
+        closeList(); continue;
+      }
+
+      closeList();
+      out.push('<p>' + inlineMarkdown(trimmed) + '</p>');
+    }
+    closeList();
+    return out.join('\n');
+  }
+
+  async function openLegalSheet() {
+    const content = $('#legal-content');
+    if (!content.dataset.loaded) {
+      content.innerHTML = '<p>Загрузка…</p>';
+      const text = await loadLegalText();
+      if (text && text.trim()) {
+        content.innerHTML = renderLegalMarkdown(text);
+      } else {
+        content.innerHTML = '<p>Текст документа недоступен.</p>';
+      }
+      content.dataset.loaded = '1';
+    }
+    content.scrollTop = 0;
+    if (!legalSheet.open) openSheet(legalSheet);
+  }
+
+  legalSheet.addEventListener('click', e => {
+    if (e.target !== e.currentTarget) return;
+    const r = legalSheet.getBoundingClientRect();
+    const inside = e.clientY >= r.top && e.clientX >= r.left && e.clientX <= r.right;
+    if (inside) return;
+    closeSheetAnimated(legalSheet);
+  });
+  legalSheet.addEventListener('cancel', e => {
+    e.preventDefault();
+    closeSheetAnimated(legalSheet);
+  });
+  $('#legal-close').onclick = () => closeSheetAnimated(legalSheet);
+
+  /* ===== TON Connect ===== */
+  let tonConnectUI = null;
+  let connectedWallet = null;
+
+  function initTonConnect(walletsListSource) {
+    if (!window.TON_CONNECT_UI || !window.TON_CONNECT_UI.TonConnectUI) {
+      console.warn('TON Connect SDK не загружен');
+      return;
+    }
+    try {
+      tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: window.location.origin + '/tonconnect-manifest.json',
+        ...(walletsListSource ? { walletsListSource } : {}),
+        actionsConfiguration: {
+          returnStrategy: 'back',
+          twaReturnUrl: window.location.origin
+        }
+      });
+      tonConnectUI.onStatusChange(wallet => { connectedWallet = wallet; });
+    } catch (e) {
+      console.error('TON Connect init error:', e);
+      tonConnectUI = null;
+    }
+  }
+
+  function extractWalletAddress(wallet) {
+    if (!wallet) return '';
+    if (typeof wallet === 'string') return wallet;
+    if (wallet.account && wallet.account.address) return String(wallet.account.address);
+    if (wallet.address) return String(wallet.address);
+    return '';
+  }
+
+  function shortAddress(addr) {
+    if (!addr) return '—';
+    const s = String(addr);
+    if (s.length <= 14) return s;
+    return s.slice(0, 6) + '…' + s.slice(-4);
+  }
+
+  function waitForTonConnection(timeoutMs = 300000) {
+    return new Promise(resolve => {
+      if (tonConnectUI && tonConnectUI.connected) return resolve(tonConnectUI.wallet || true);
+      if (!tonConnectUI) return resolve(null);
+
+      let done = false;
+      let unsubStatus = null, unsubModal = null, modalCloseTimer = null, timeoutTimer = null;
+
+      const cleanup = () => {
+        try { unsubStatus && unsubStatus(); } catch (e) {}
+        try { unsubModal && unsubModal(); } catch (e) {}
+        clearTimeout(modalCloseTimer);
+        clearTimeout(timeoutTimer);
+      };
+      const finish = value => {
+        if (done) return;
+        done = true;
+        cleanup();
+        resolve(value);
+      };
+
+      timeoutTimer = setTimeout(() => {
+        finish(tonConnectUI.connected ? (tonConnectUI.wallet || true) : null);
+      }, timeoutMs);
+
+      try {
+        unsubStatus = tonConnectUI.onStatusChange(w => { if (w) finish(w); });
+      } catch (e) {}
+
+      try {
+        if (typeof tonConnectUI.onModalStateChange === 'function') {
+          unsubModal = tonConnectUI.onModalStateChange(state => {
+            const status = typeof state === 'string' ? state : (state && state.status);
+            if (status === 'closed') {
+              clearTimeout(modalCloseTimer);
+              modalCloseTimer = setTimeout(() => {
+                if (done) return;
+                if (tonConnectUI.connected) finish(tonConnectUI.wallet || true);
+                else finish(null);
+              }, 400);
+            }
+          });
+        }
+      } catch (e) {}
+    });
+  }
+
+  /* ===== Сценарии ===== */
+  async function runActionFlow() {
+    loadingLocked = true;
+    setLoadingStage('loading');
+    openSheet(loadingSheet);
+
+    if (isProvider()) {
+      const job = ensureProviderInvoice().then(() => null, err => err || new Error('create failed'));
+      const [failure] = await Promise.all([job, wait(2000)]);
+
+      await closeSheetAnimated(loadingSheet);
+      loadingLocked = false;
+
+      if (failure) {
+        console.error('Invoice create error:', failure);
+        reportDebug('Создание счёта', failure);
+        showTopNotice(friendlyPayError(failure, 'create'), 'error');
+        return;
+      }
+      openActionSheet({ showCheck: true, label: 'Перейти' });
+      startInvoicePolling();
+      return;
+    }
+
+    let conversionPromise = null;
+    const ticker = getTargetTicker();
+    if (ticker) {
+      const rub = getInvoiceRub();
+      if (rub > 0) conversionPromise = convertCurrency('RUB', ticker, rub).catch(() => null);
+    }
+    await wait(2000);
+    if (conversionPromise) await Promise.race([conversionPromise, wait(3000)]);
+    await closeSheetAnimated(loadingSheet);
+    loadingLocked = false;
+    openActionSheet({ showCheck: true, label: 'Перейти' });
+  }
+
+  async function runCryptoFlow() {
+    loadingLocked = true;
+    setLoadingStage('loading');
+    openSheet(loadingSheet);
+
+    const ticker = getTargetTicker();
+    let conversionPromise = null;
+    if (ticker) {
+      const rub = getInvoiceRub();
+      if (rub > 0) conversionPromise = convertCurrency('RUB', ticker, rub).catch(() => null);
+    }
+    await wait(2000);
+    if (conversionPromise) await Promise.race([conversionPromise, wait(3000)]);
+    await closeSheetAnimated(loadingSheet);
+    loadingLocked = false;
+    openTransferSheet();
+  }
+
+  async function runTrustFlow() {
+    loadingLocked = true;
+    setLoadingStage('loading');
+    openSheet(loadingSheet);
+
+    if (!isMobileDevice()) {
+      await closeSheetAnimated(loadingSheet);
+      loadingLocked = false;
+      showTopNotice('Откройте страницу на мобильном, чтобы оплатить в приложении', 'error');
+      return;
+    }
+
+    const ticker = detail === 'bnb' ? 'BNB' : 'ETH';
+    const rub = getInvoiceRub();
+
+    try {
+      if (!rub) throw new Error('Сумма инвойса не определена');
+      const data = await convertCurrency('RUB', ticker, rub);
+      const amount = Number(data && data.result);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Не удалось рассчитать сумму');
+
+      await wait(600);
+      await closeSheetAnimated(loadingSheet);
+      loadingLocked = false;
+
+      const link = buildTrustDeepLink(amount, ticker);
+      showTopNotice('Открываем кошелёк…');
+      await wait(150);
+      try { window.location.href = link; }
+      catch (e) {
+        console.error('Trust deep link error:', e);
+        showTopNotice('Не удалось открыть кошелёк', 'error');
+      }
+    } catch (e) {
+      await closeSheetAnimated(loadingSheet);
+      loadingLocked = false;
+      console.error('Trust flow error:', e);
+      reportDebug('Trust deep link', e);
+      showTopNotice((e && e.message) ? e.message : 'Не удалось рассчитать сумму', 'error');
+    }
+  }
+
+  async function runConnectorFlow() {
+    loadingLocked = true;
+    setLoadingStage('loading');
+    openSheet(loadingSheet);
+    await wait(600);
+
+    const rub = getInvoiceRub();
+    if (rub > 0) convertCurrency('RUB', 'TON', rub).catch(() => null);
+
+    setLoadingStage('tonconnect');
+
+    if (!tonConnectUI) await Promise.race([ensureTonSdk(), wait(8000)]);
+
+    if (!tonConnectUI) {
+      showTopNotice('TON Connect недоступен', 'error');
+      await wait(1800);
+      await closeSheetAnimated(loadingSheet);
+      loadingLocked = false;
+      return;
+    }
+
+    let wallet = null;
+
+    if (!tonConnectUI.connected) {
+      try { tonConnectUI.openModal(); } catch (e) { console.error('TON Connect openModal error:', e); }
+      wallet = await waitForTonConnection();
+      if (!wallet) {
+        try { tonConnectUI.closeModal(); } catch (e) {}
+        setLoadingStage('tonconnect');
+        await wait(1000);
+        await closeSheetAnimated(loadingSheet);
+        loadingLocked = false;
+        return;
+      }
+    } else {
+      wallet = tonConnectUI.wallet || connectedWallet || true;
+    }
+
+    try { tonConnectUI.closeModal(); } catch (e) {}
+
+    setLoadingStage('loading');
+    await wait(700);
+    showTopNotice('Подключено успешно');
+    await wait(900);
+    await closeSheetAnimated(loadingSheet);
+    loadingLocked = false;
+
+    const addr =
+      extractWalletAddress(wallet) ||
+      extractWalletAddress(tonConnectUI.wallet) ||
+      extractWalletAddress(connectedWallet);
+
+    openActionSheet({ showCheck: false, label: 'Перейти к оплате', tonInfo: { address: addr } });
+  }
+
+  function openActionSheet({ showCheck, label, tonInfo }) {
+    $('#btn-check').hidden = !showCheck;
+    const goLabel = $('#btn-go span');
+    if (goLabel) goLabel.textContent = label || 'Перейти';
+
+    const dotsEl = $('#action-dots');
+    const infoEl = $('#ton-connect-info');
+
+    if (tonInfo && tonInfo.address) {
+      dotsEl.hidden = true;
+      infoEl.hidden = false;
+      $('#tc-balance-value').textContent = '…';
+      $('#tc-hash').textContent = shortAddress(tonInfo.address);
+
+      const addrSnapshot = tonInfo.address;
+      fetchTonBalanceNano(addrSnapshot)
+        .then(nano => {
+          if ($('#tc-hash').textContent !== shortAddress(addrSnapshot)) return;
+          $('#tc-balance-value').textContent = formatNano(nano, 4);
+        })
+        .catch(err => {
+          console.error('Balance fetch error:', err);
+          if ($('#tc-hash').textContent !== shortAddress(addrSnapshot)) return;
+          $('#tc-balance-value').textContent = '—';
+        });
+    } else {
+      dotsEl.hidden = false;
+      infoEl.hidden = true;
+    }
+    openSheet(actionSheet);
+    saveState();
+  }
+
+  async function openTransferSheet() {
+    const address = transferAddresses[selected] || transferAddresses.ethereum;
+    const ticker  = transferTickers[selected]  || 'ETH';
+
+    $('#transfer-address').textContent = address;
+    $('#transfer-amount').textContent = '…';
+    $('#qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data='
+      + encodeURIComponent(address);
+
+    openSheet(transferSheet);
+    saveState();
+
+    const rub = getInvoiceRub();
+    if (!rub) { $('#transfer-amount').textContent = '—'; return; }
+
+    try {
+      const data = await convertCurrency('RUB', ticker, rub);
+      const value = data && Number.isFinite(Number(data.result)) ? Number(data.result) : 0;
+      $('#transfer-amount').textContent = formatCryptoAmount(value, ticker);
+    } catch (e) {
+      console.error('Conversion error:', e);
+      reportDebug('Конвертер курса', e);
+      $('#transfer-amount').textContent = '—';
+      showTopNotice('Не удалось получить курс', 'error');
+    }
+  }
+
+  /* ===== Воркер инвойсов ===== */
+  const PAY_WORKER_URL = 'https://bitter-tree-db8f.morning-lake-bc56.workers.dev/';
+  const PAY_WORKER_TIMEOUT = 30000;
+  const INVOICE_POLL_MS = 5000;
+  const INVOICE_DECIMALS = { USDT: 2, USDC: 2, BTC: 8, ETH: 8, SOL: 6, TRX: 4, BNB: 6 };
+
+  let invoicePollTimer = null;
+  let invoiceChecking = false;
+
+  async function workerCall(provider, action, data) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PAY_WORKER_TIMEOUT);
+
+    let res;
+    try {
+      res = await fetch(PAY_WORKER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        /* orderId едет ТОЛЬКО на верхнем уровне — внутрь data не кладём,
+           иначе xRocket API падает с 500 на незнакомом поле */
+        body: JSON.stringify({
+          provider,
+          action,
+          orderId: INVOICE_ORDER_ID || null,
+          data: data || {}
+        }),
+        signal: controller.signal
+      });
+    } catch (err) {
+      if (err && err.name === 'AbortError') throw err;
+      throw new Error(await explainFetchFailure(PAY_WORKER_URL, 'Воркер ' + provider + '/' + action, err));
+    } finally { clearTimeout(timer); }
+
+    let json = null;
+    try { json = await res.json(); } catch (e) { json = null; }
+
+    if (!res.ok || !json || json.ok === false || json.success === false || json.error) {
+      let msg = '';
+      if (json) {
+        if (typeof json.error === 'string') msg = json.error;
+        else if (json.error && json.error.message) msg = json.error.message;
+        else msg = json.message || json.description || '';
+      }
+      throw new Error(msg || ('HTTP ' + res.status));
+    }
+    return unwrapWorkerResponse(json);
+  }
+
+  function unwrapWorkerResponse(json) {
+    let out = json;
+    for (const key of ['result', 'data', 'invoice', 'items']) {
+      const inner = out && out[key];
+      if (Array.isArray(inner)) {
+        if (inner[0] && typeof inner[0] === 'object') out = Object.assign({}, out, inner[0]);
+      } else if (inner && typeof inner === 'object') {
+        out = Object.assign({}, out, inner);
+      }
+    }
+    return out;
+  }
+
+  function normalizeInvoiceStatus(value) {
+    const s = String(value || '').toLowerCase();
+    if (s === 'paid') return 'paid';
+    if (s === 'expired') return 'expired';
+    return 'active';
+  }
+
+  function formatInvoiceAmount(value, ticker) {
+    const decimals = INVOICE_DECIMALS[ticker] !== undefined ? INVOICE_DECIMALS[ticker] : 6;
+    const k = Math.pow(10, decimals);
+    const rounded = Math.ceil(value * k - 1e-9) / k;
+    return rounded.toFixed(decimals);
+  }
+
+  /* ===== Создание инвойса: передаём РУБЛИ, сервис сам конвертирует ===== */
+  async function createProviderInvoice(provider, ticker, amountRub) {
+    if (provider === 'cryptobot') {
+      const r = await workerCall('cryptobot', 'create_invoice', {
+        amount: String(amountRub),
+        currency_type: 'fiat',
+        fiat: 'RUB',
+        accepted_assets: ticker,
+        description: INVOICE_DESCRIPTION
+      });
+      const id = Number(r.invoice_id);
+      const payUrl = r.pay_url || r.bot_invoice_url || r.web_app_invoice_url || '';
+      if (!Number.isFinite(id) || !payUrl) throw new Error('Некорректный ответ CryptoBot');
+      return {
+        provider: 'cryptobot', id: id, payUrl: payUrl,
+        webUrl: r.web_app_invoice_url || '',
+        status: normalizeInvoiceStatus(r.status),
+        ticker: ticker, amount: amountRub,
+        expiresAt: null, createdAt: Date.now()
+      };
+    }
+
+    const r = await workerCall('xrocket', 'create_invoice', {
+      amount: String(amountRub),
+      priceCurrency: 'RUB',
+      payCurrencies: [ticker],
+      description: INVOICE_DESCRIPTION
+    });
+    const id = r.id !== undefined && r.id !== null ? String(r.id) : '';
+    const payUrl = (r.links && r.links.telegramBotLink) || r.link || '';
+    if (!id || !payUrl) throw new Error('Некорректный ответ xRocket');
+    const ttl = Number(r.expiresIn);
+    return {
+      provider: 'xrocket', id: id, payUrl: payUrl, webUrl: '',
+      status: normalizeInvoiceStatus(r.status),
+      ticker: ticker, amount: amountRub,
+      expiresAt: Number.isFinite(ttl) && ttl > 0 ? Date.now() + ttl : null,
+      createdAt: Date.now()
+    };
+  }
+
+  async function fetchInvoiceStatus(inv) {
+    const data = inv.provider === 'cryptobot'
+      ? { invoice_id: Number(inv.id) }
+      : { invoiceId: String(inv.id) };
+    const r = await workerCall(inv.provider, 'check_invoice', data);
+    return normalizeInvoiceStatus(r.status);
+  }
+
+  /* ===== Готовим инвойс: без конвертера, рубли напрямую ===== */
+  async function ensureProviderInvoice() {
+    const ticker = getTargetTicker();
+    if (!ticker) throw new Error('Валюта не выбрана');
+
+    if (
+      invoice && invoice.provider === selected && invoice.ticker === ticker &&
+      invoice.status === 'active' &&
+      !(invoice.expiresAt && Date.now() >= invoice.expiresAt)
+    ) return invoice;
+
+    stopInvoicePolling();
+    invoice = null;
+
+    const rub = getInvoiceRub();
+    if (!rub) throw new Error('Сумма инвойса не определена');
+
+    const created = await createProviderInvoice(selected, ticker, rub);
+    invoice = created;
+    saveState();
+    return created;
+  }
+
+  /* Автопроверка отключена: статус счёта проверяется только по кнопке. */
+  function startInvoicePolling() {
+    stopInvoicePolling();
+  }
+
+  function stopInvoicePolling() {
+    if (invoicePollTimer) { clearInterval(invoicePollTimer); invoicePollTimer = null; }
+  }
+
+  async function checkInvoice({ silent = false } = {}) {
+    const current = invoice;
+    if (!current || current.status === 'paid') return;
+
+    if (invoiceChecking) {
+      if (silent) return;
+      while (invoiceChecking) await wait(150);
+      if (invoice !== current || current.status === 'paid') return;
+    }
+
+    invoiceChecking = true;
+    try {
+      let status = await fetchInvoiceStatus(current);
+      if (invoice !== current) return;
+
+      if (status === 'active' && current.expiresAt && Date.now() >= current.expiresAt) status = 'expired';
+
+      if (status === 'paid') {
+        await handleInvoicePaid();
+      } else if (status === 'expired') {
+        const alreadyExpired = current.status === 'expired';
+        handleInvoiceExpired();
+        if (alreadyExpired && !silent) showTopNotice('Оплата по этому счёту не найдена', 'error');
+      } else if (!silent) {
+        showTopNotice('Платёж ещё не поступил. Попробуйте через минуту', 'error');
+      }
+    } catch (e) {
+      console.error('Invoice check error:', e);
+      if (!silent) reportDebug('Проверка счёта', e);
+      if (!silent) showTopNotice(friendlyPayError(e, 'check'), 'error');
+    } finally { invoiceChecking = false; }
+  }
+
+  function closeAllSheets() {
+    confirmOrigin = null;
+    loadingLocked = false;
+    for (const el of [confirmSheet, loadingSheet, actionSheet, transferSheet, legalSheet]) closeSheetInstant(el);
+  }
+
+  function showViewOnly(id) {
+    $('#payment-form').hidden = true;
+    $('#expired').hidden = id !== 'expired';
+  }
+
+  function showPaidView() {
+    $('#payment-form').hidden = true;
+    $('#expired').hidden = true;
+    page.style.display = 'none';
+    paidScreen.hidden = false;
+    notfoundScreen.hidden = true;
+  }
+
+  function showExpiredView() {
+    showViewOnly('expired');
+    paidScreen.hidden = true;
+  }
+
+  function showNotFoundScreen() {
+    page.style.display = 'none';
+    paidScreen.hidden = true;
+    notfoundScreen.hidden = false;
+  }
+
+  async function handleInvoicePaid() {
+    stopInvoicePolling();
+    if (invoice) invoice.status = 'paid';
+    closeAllSheets();
+    showPaidView();
+    showTopNotice('Оплата прошла успешно');
+    saveState();
+    /* Оплата подтверждена — сообщаем orders-api, что заказ оплачен */
+    if (order && order.id) {
+      try { await markOrderPaidInAPI(order.id); } catch (e) { reportDebug('Orders API PUT', e); }
+      order.status = 'paid';
+      try { saveState(); } catch (e) {}
+    }
+  }
+
+  function handleInvoiceExpired() {
+    stopInvoicePolling();
+    if (invoice) invoice.status = 'expired';
+    closeAllSheets();
+    showExpiredView();
+    showTopNotice('Время оплаты истекло', 'error');
+    saveState();
+  }
+
+  function friendlyPayError(err, kind) {
+    const s = String((err && (err.name + ' ' + err.message)) || '').toLowerCase();
+    if (/abort|timeout|timed out/.test(s)) return 'Сервер не отвечает. Попробуйте ещё раз.';
+    if (/failed to fetch|network|load failed|offline/.test(s)) return 'Ошибка соединения. Проверьте интернет и повторите попытку.';
+    if (/401|403|unauthorized|forbidden/.test(s)) return 'Нет доступа к платёжному сервису.';
+    return kind === 'check'
+      ? 'Не удалось проверить статус платежа. Попробуйте позже.'
+      : 'Не удалось создать счёт. Попробуйте позже.';
+  }
+
+  function openExternalLink(url) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  $('#already-paid').onclick = async () => {
+    if (!rateLimit('check')) return;
+    const btn = $('#already-paid');
+    btn.disabled = true;
+    try {
+      if (order && order.id) {
+        const fresh = await loadOrder(order.id);
+        if (fresh && fresh.status === 'paid') {
+          order = fresh;
+          applyOrderToUI(order);
+          await handleInvoicePaid();
+          return;
+        }
+      }
+      if (!invoice) { showTopNotice('Счёт не найден', 'error'); return; }
+      await checkInvoice({ silent: false });
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  $('#restart').onclick = () => {
+    stopInvoicePolling();
+    invoice = null;
+    $('#expired').hidden = true;
+    paidScreen.hidden = true;
+    notfoundScreen.hidden = true;
+    $('#payment-form').hidden = false;
+    page.style.display = '';
+    saveState();
+  };
+
+  /* ===== Кнопки панелей ===== */
+  $('#btn-go').onclick = async () => {
+    if (isProvider()) {
+      if (!invoice || invoice.status !== 'active') {
+        showTopNotice('Счёт недоступен. Создайте новый платёж', 'error');
+        return;
+      }
+      if (invoice.expiresAt && Date.now() >= invoice.expiresAt) {
+        handleInvoiceExpired();
+        return;
+      }
+      showTopNotice('Открываем ' + coinInfo(selected).name + '…');
+      openExternalLink(invoice.payUrl);
+      startInvoicePolling();
+      return;
+    }
+
+    if (selected === 'keeper') {
+      if (!isMobileDevice()) {
+        showTopNotice('Откройте страницу на мобильном, чтобы оплатить в приложении', 'error');
+        return;
+      }
+      const btn = $('#btn-go');
+      const originalLabel = $('#btn-go span')?.textContent || 'Перейти';
+      btn.disabled = true;
+      if ($('#btn-go span')) $('#btn-go span').textContent = 'Готовим ссылку…';
+      try {
+        const link = await buildWalletDeepLink(selected);
+        showTopNotice('Открываем кошелёк…');
+        await wait(150);
+        try { window.location.href = link; }
+        catch (e) {
+          console.error('Deep link error:', e);
+          showTopNotice('Не удалось открыть кошелёк', 'error');
+        }
+      } catch (e) {
+        console.error('Deep link build error:', e);
+        reportDebug('Deep link', e);
+        showTopNotice(e && e.message ? e.message : 'Не удалось рассчитать сумму', 'error');
+      } finally {
+        btn.disabled = false;
+        if ($('#btn-go span')) $('#btn-go span').textContent = originalLabel;
+      }
+      return;
+    }
+
+    if (selected === 'tonconnect') {
+      const btn = $('#btn-go');
+      const originalLabel = $('#btn-go span')?.textContent || 'Перейти к оплате';
+      btn.disabled = true;
+      if ($('#btn-go span')) $('#btn-go span').textContent = 'Ждём подтверждения…';
+
+      try {
+        showTopNotice('Открываем кошелёк для подписи…');
+        const result = await sendTonConnectPayment();
+        console.log('TON Connect transaction result:', result);
+        showTopNotice('Транзакция отправлена');
+        await wait(900);
+        await handleInvoicePaid();
+      } catch (e) {
+        console.error('TON Connect send error:', e);
+        const raw = (e && (e.message || e.toString && e.toString())) || '';
+        showTopNotice(friendlyTonError(raw), 'error');
+      } finally {
+        btn.disabled = false;
+        if ($('#btn-go span')) $('#btn-go span').textContent = originalLabel;
+      }
+      return;
+    }
+    showTopNotice('Переходим к оплате…');
+  };
+
+  /* Общая криптопроверка для ETH / BNB / Trust */
+  function getCryptoVerifyParams() {
+    if (isCrypto()) {
+      return {
+        address: transferAddresses[selected],
+        ticker: transferTickers[selected] || 'ETH'
+      };
+    }
+    if (isTrust()) {
+      const ticker = detail === 'bnb' ? 'BNB' : 'ETH';
+      const address = ticker === 'BNB' ? transferAddresses.bnb : transferAddresses.ethereum;
+      return { address, ticker };
+    }
+    return null;
+  }
+
+  async function runCryptoCheckUI() {
+    const params = getCryptoVerifyParams();
+    if (!params) return false;
+    const rub = getInvoiceRub();
+    if (!rub) {
+      showTopNotice('Сумма инвойса не определена', 'error');
+      return true;
+    }
+    const data = await convertCurrency('RUB', params.ticker, rub);
+    const amount = Number(data && data.result);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showTopNotice('Не удалось рассчитать сумму', 'error');
+      return true;
+    }
+    const status = await checkCryptoPayment(params.address, params.ticker, toPlainAmountString(amount));
+    if (status === 'OK') {
+      await handleInvoicePaid();
+    } else {
+      showTopNotice('Платёж ещё не поступил. Попробуйте через минуту', 'error');
+    }
+    return true;
+  }
+
+  $('#btn-check').onclick = async () => {
+    if (isProvider()) {
+      if (!rateLimit('check')) return;
+      if (!invoice) { showTopNotice('Счёт не создан', 'error'); return; }
+      const btn = $('#btn-check');
+      btn.disabled = true;
+      showTopNotice('Проверяем статус платежа…');
+      try { await checkInvoice({ silent: false }); }
+      finally { btn.disabled = false; }
+      return;
+    }
+
+    if (isCrypto() || isTrust()) {
+      if (!rateLimit('check')) return;
+      const btn = $('#btn-check');
+      btn.disabled = true;
+      showTopNotice('Проверяем поступление средств…');
+      try { await runCryptoCheckUI(); }
+      catch (e) {
+        console.error('Crypto verify error:', e);
+        reportDebug('Проверка криптоплатежа', e);
+        showTopNotice('Не удалось проверить платёж. Попробуйте позже.', 'error');
+      }
+      finally { btn.disabled = false; }
+      return;
+    }
+
+    if (order && order.id) {
+      if (!rateLimit('check')) return;
+      const btn = $('#btn-check');
+      btn.disabled = true;
+      showTopNotice('Проверяем статус платежа…');
+      try {
+        const fresh = await loadOrder(order.id);
+        if (fresh && fresh.status === 'paid') {
+          order = fresh;
+          applyOrderToUI(order);
+          await handleInvoicePaid();
+          return;
+        }
+        showTopNotice('Платёж ещё не поступил. Попробуйте через минуту', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+      return;
+    }
+    showTopNotice('Проверяем статус платежа…');
+  };
+
+  $('#btn-check-transfer').onclick = async () => {
+    if (isCrypto() || isTrust()) {
+      if (!rateLimit('check')) return;
+      const btn = $('#btn-check-transfer');
+      btn.disabled = true;
+      showTopNotice('Проверяем поступление средств…');
+      try { await runCryptoCheckUI(); }
+      catch (e) {
+        console.error('Crypto verify error:', e);
+        reportDebug('Проверка криптоплатежа', e);
+        showTopNotice('Не удалось проверить платёж. Попробуйте позже.', 'error');
+      }
+      finally { btn.disabled = false; }
+      return;
+    }
+
+    if (order && order.id) {
+      if (!rateLimit('check')) return;
+      const btn = $('#btn-check-transfer');
+      btn.disabled = true;
+      showTopNotice('Проверяем поступление средств…');
+      try {
+        const fresh = await loadOrder(order.id);
+        if (fresh && fresh.status === 'paid') {
+          order = fresh;
+          applyOrderToUI(order);
+          await handleInvoicePaid();
+          return;
+        }
+        showTopNotice('Платёж ещё не поступил. Попробуйте через минуту', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+      return;
+    }
+    showTopNotice('Проверяем поступление средств…');
+  };
+
+  /* ===== Отправка формы ===== */
+  $('#payment-form').onsubmit = async e => {
+    e.preventDefault();
+
+    const needDetail = items().length > 0;
+    const missing = !selected ? 'method' : (needDetail && !detail) ? 'detail' : null;
+
+    if (missing) {
+      toggle(missing, true, true);
+      $('#' + missing + '-toggle').classList.add('invalid');
+      return;
+    }
+    if (!$('#email').checkValidity()) { $('#email').reportValidity(); return; }
+    toggle('method', false);
+    toggle('detail', false);
+
+    if (isConnector()) await runConnectorFlow();
+    else if (isCrypto()) await runCryptoFlow();
+    else if (isTrust()) await runTrustFlow();
+    else await runActionFlow();
+  };
+
+  /* ===== Диалог инфо ===== */
+  $('#order-details')?.addEventListener('click', () => {
+    const amount = order && order.amount != null ? order.amount : (getInvoiceRub() || '—');
+    const id = order && order.id ? order.id : (INVOICE_ORDER_ID || '—');
+    const status = order && order.status ? order.status : 'pending';
+    $('#dialog-title').textContent = 'Детали инвойса';
+    $('#dialog-body').innerHTML =
+      '<p><strong>Сумма:</strong> ' + escapeHtml(amount) + ' ₽</p>' +
+      '<p><strong>Назначение:</strong> Пополнение Games</p>' +
+      '<p><strong>ID счёта:</strong> ' + escapeHtml(id) + '</p>' +
+      '<p><strong>Статус:</strong> ' + escapeHtml(status) + '</p>';
+    $('#dialog').showModal();
+  });
+  $('#close-dialog')?.addEventListener('click', () => $('#dialog').close());
+
+  $('#terms')?.addEventListener('click', e => {
+    e.preventDefault();
+    openLegalSheet();
+  });
+  $('#privacy')?.addEventListener('click', e => {
+    e.preventDefault();
+    openLegalSheet();
+  });
+
+  /* ===== Загрузка + TON SDK + Bootstrap ===== */
+  function hideLoader() {
+    const el = document.getElementById('fullscreen-loading');
+    if (!el) return;
+    el.classList.add('is-dissolving');
+    el.setAttribute('aria-hidden', 'true');
+    window.setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 900);
+  }
+
+  function revealForm() {
+    hideLoader();
+    page.classList.add('revealed');
+    Promise.race([ensureTonSdk(), wait(2500)]).then(() => window.setTimeout(restoreState, 400));
+  }
+
+  const TON_SDK_URLS = [
+    'https://cdn.jsdelivr.net/npm/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js',
+    'https://unpkg.com/@tonconnect/ui@2.3.1/dist/tonconnect-ui.min.js'
+  ];
+
+  function loadScriptWithTimeout(url, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = url;
+      el.async = true;
+      const timer = setTimeout(() => { el.remove(); reject(new Error('timeout')); }, timeoutMs);
+      el.onload = () => { clearTimeout(timer); resolve(); };
+      el.onerror = () => { clearTimeout(timer); el.remove(); reject(new Error('load error')); };
+      document.head.appendChild(el);
+    });
+  }
+
+  async function loadTonSdk() {
+    const ready = () => !!(window.TON_CONNECT_UI && window.TON_CONNECT_UI.TonConnectUI);
+    if (ready()) return true;
+    for (const url of TON_SDK_URLS) {
+      try {
+        await loadScriptWithTimeout(url, 8000);
+        if (ready()) return true;
+      } catch (e) {}
+    }
+    return false;
+  }
+
+  const TON_WALLETS_PRIMARY = 'https://raw.githubusercontent.com/ton-blockchain/wallets-list/main/wallets-v2.json';
+  const TON_WALLETS_MIRROR = 'https://cdn.jsdelivr.net/gh/ton-blockchain/wallets-list@main/wallets-v2.json';
+
+  async function probeUrl(url, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      return res.ok;
+    } catch (e) { return false; }
+    finally { clearTimeout(timer); }
+  }
+
+  async function pickWalletsListSource() {
+    if (await probeUrl(TON_WALLETS_PRIMARY, 4000)) return undefined;
+    if (await probeUrl(TON_WALLETS_MIRROR, 4000)) return TON_WALLETS_MIRROR;
+    return undefined;
+  }
+
+  let tonSdkPromise = null;
+  function ensureTonSdk() {
+    if (!tonSdkPromise) {
+      tonSdkPromise = loadTonSdk().then(async ok => {
+        if (!ok) { console.warn('TON Connect SDK не загружен'); return; }
+        initTonConnect(await pickWalletsListSource());
+      }).catch(e => console.warn('TON Connect init failed:', e));
+    }
+    return tonSdkPromise;
+  }
+
+  async function bootstrap() {
+    const orderId = getOrderIdFromUrl();
+
+    if (!orderId) {
+      reportDebug('Bootstrap', new Error('Не удалось получить orderId из URL'));
+      hideLoader();
+      showNotFoundScreen();
+      return;
+    }
+
+    const loaded = await loadOrder(orderId);
+
+    if (!loaded) {
+      hideLoader();
+      showNotFoundScreen();
+      return;
+    }
+
+    order = loaded;
+    applyOrderToUI(order);
+    INVOICE_ORDER_ID = String(order.id || '');
+    INVOICE_DESCRIPTION = 'Plata Pay invoice ' + INVOICE_ORDER_ID;
+
+    if (order.status === 'paid') {
+      hideLoader();
+      showPaidView();
+      persistenceReady = true;
+      try { saveState(); } catch (e) {}
+      return;
+    }
+
+    const saved = readSavedState();
+    if (saved && saved.paid === true) {
+      hideLoader();
+      showPaidView();
+      persistenceReady = true;
+      return;
+    }
+
+    revealForm();
+  }
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.setTimeout(bootstrap, 200);
+  } else {
+    window.setTimeout(bootstrap, 800);
+  }
+})();
+</script>
+</body>
+</html>
