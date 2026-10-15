@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const html=fs.readFileSync(root+'index.html','utf8'),fallback=fs.readFileSync(root+'404.html','utf8');
 const id='d8f1-np4z-a9ko-nb2q';let passed=0;
+assert.ok(fallback.includes('role="status" hidden>'));assert.ok(!html.includes('404<span>.</span>'));assert.ok(html.includes('width: 0.115em; height: 0.115em;'));passed++;
 const redirectCode=fallback.split('/* CHECKOUT REDIRECT START */')[1].split('/* CHECKOUT REDIRECT END */')[0];
-function redirect(path){let target=null;const message={textContent:''};vm.runInNewContext(redirectCode,{window:{location:{pathname:path,replace:v=>target=v}},encodeURIComponent,document:{getElementById:()=>message}});return {target,message:message.textContent};}
+function redirect(path){let target=null;const message={textContent:''};vm.runInNewContext(redirectCode,{window:{location:{pathname:path,replace:v=>target=v}},encodeURIComponent,document:{getElementById:()=>message,querySelector:()=>message}});return {target,message:message.textContent};}
 assert.equal(redirect('/order/'+id).target,'/order/?checkout='+id);passed++;
 assert.equal(redirect('/order/'+id+'/').target,'/order/?checkout='+id);passed++;
 assert.equal(redirect('/order/invalid').target,null);passed++;
@@ -25,12 +26,12 @@ assert.equal(sandbox.api.getOrderIdFromUrl({href:'https://plata-pay.github.io/or
 assert.equal(sandbox.api.getOrderIdFromUrl({href:'https://plata-pay.github.io/order/?checkout='+id}),id);assert.equal(replaced,'/order/'+id);passed++;
 await sandbox.api.bootCheckout();assert.equal(sandbox.checkoutOrder.id,id);assert.equal($('.order-id').textContent,id);assert.equal($('.amount-value .sum').textContent,'150,25');assert.equal($('#page').style.display,'');passed++;
 assert.equal(calls[0].url,'https://plata-order-reader.dpl-payments.workers.dev/?id='+id);assert.deepEqual(Object.keys(calls[0].options.headers),['Accept']);passed++;
-sandbox.fetch=async()=>Response.json({id,amount:150.25,status:'paid'});await sandbox.api.bootCheckout();assert.equal(paidScreens,0);assert.equal($('#notfound-screen').hidden,false);passed++;
-sandbox.fetch=async()=>Response.json({id,amount:150.25,status:'cancelled'});await sandbox.api.bootCheckout();assert.equal($('#page').style.display,'none');assert.equal($('#checkout-message').textContent,'Не удалось загрузить инвойс');passed++;
-sandbox.fetch=async()=>Response.json({error:'Order not found'},{status:404});await sandbox.api.bootCheckout();assert.equal(sandbox.checkoutOrder,null);assert.equal($('#checkout-message').textContent,'Не удалось загрузить инвойс');passed++;
+sandbox.fetch=async()=>Response.json({id,amount:150.25,status:'paid'});await sandbox.api.bootCheckout();assert.equal(paidScreens,1);assert.equal($('#notfound-screen').hidden,true);passed++;
+sandbox.fetch=async()=>Response.json({id,amount:150.25,status:'cancelled'});await sandbox.api.bootCheckout();assert.equal($('#page').style.display,'none');assert.equal($('#checkout-message').textContent,'Счёт отменён');assert.equal($('#checkout-error-code').hidden,true);passed++;
+sandbox.fetch=async()=>Response.json({error:'Order not found'},{status:404});await sandbox.api.bootCheckout();assert.equal(sandbox.checkoutOrder,null);assert.equal($('#checkout-message').textContent,'Счёт не найден');assert.equal($('#checkout-error-code').hidden,true);passed++;
 sandbox.fetch=async()=>Response.json({id:'aaaa-bbbb-cccc-dddd',amount:1,status:'pending'});await assert.rejects(()=>sandbox.api.loadCheckoutOrder(id));passed++;
 sandbox.fetch=async()=>Response.json({id,amount:'150',status:'pending'});await assert.rejects(()=>sandbox.api.loadCheckoutOrder(id));passed++;
 assert.ok(!html.includes('ORDERS_API_TOKEN'));assert.ok(!html.includes('markOrderPaidInAPI'));assert.ok(!html.includes('orders-api.bratiah571'));assert.ok(!html.includes('bitter-tree-db8f'));passed++;
 sandbox.window.location.href='https://plata-pay.github.io/order/';await sandbox.api.bootCheckout();assert.equal($('#notfound-screen').hidden,false);assert.equal($('#checkout-retry').hidden,true);assert.equal($('#checkout-message').textContent,'Не удалось загрузить инвойс');passed++;
 assert.ok(html.includes('style="display:none"'));assert.ok(!html.includes('PLT-2026-00128'));assert.ok(html.includes('<span class="sum">—</span>'));passed++;
-console.log(JSON.stringify({passed,redirect_handoff:true,loading_real_order:true,no_browser_admin_token:true,no_browser_status_mutation:true,unavailable_orders_show_custom_404:true,real_network:false}));
+console.log(JSON.stringify({passed,redirect_handoff:true,loading_real_order:true,no_browser_admin_token:true,no_browser_status_mutation:true,custom_404_only_without_id:true,paid_screen_restored:true,real_network:false}));
