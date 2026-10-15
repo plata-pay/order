@@ -1,0 +1,11 @@
+{
+  "package": "@tonconnect/ui",
+  "version": "5.0.1",
+  "packageIntegrity": "sha512-waG7fLA4Qozdf96kOwv8jkv68A+rjDrxk0bthVa0ezbwW2zXGVXciR41By2hbY6P0LetjOAiw6vLSvBRh+JJzQ==",
+  "scriptIntegrity": "sha384-QZvMrS6g6/TQyHjoc44P3RG1Kzfqnwen5A/EZ0LaQZKP8hvNY2stUmyFB5QDIKmp",
+  "source": "https://registry.npmjs.org/@tonconnect/ui/5.0.1",
+  "repository": {
+    "url": "git+https://github.com/ton-connect/sdk.git",
+    "type": "git"
+  }
+}

@@ -1339,6 +1339,7 @@
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 
 
+<script src="/order/assets/tonconnect.js"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1557,12 +1558,53 @@ function showPaymentSheet() {
   if (oldTitle) oldTitle.remove();
   $('#action-dots').hidden = false;
   $('#ton-connect-info').hidden = true;
+  $('#btn-go').disabled = false;
   $('#btn-go span').textContent = 'Оплатить';
   $('#btn-check').textContent = 'Проверить';
   $('#btn-check').disabled = false;
   $('#btn-check').hidden = false;
   openSheet('action-sheet');
 }
+// TON Connect: connection never changes order or payment status.
+let tonAccount = null, tonBusy = false;
+function showTonAccount() {
+  $('#action-dots').hidden = true;
+  $('#ton-connect-info').hidden = false;
+  $('.tc-balance-label').textContent = 'Кошелёк';
+  $('#tc-balance-value').textContent = tonAccount ? 'Подключён' : 'Не подключён';
+  $('.tc-balance-cur').textContent = '';
+  $('#tc-hash').textContent = tonAccount ? tonAccount.address : 'Подключите Tonkeeper для продолжения';
+  $('#btn-go span').textContent = tonAccount ? 'Подключён' : 'Подключить';
+  $('#btn-go').disabled = !!tonAccount;
+  $('#btn-check').textContent = 'Отключить';
+  $('#btn-check').disabled = tonBusy;
+  $('#btn-check').hidden = !tonAccount;
+  openSheet('action-sheet');
+}
+async function startTonConnection() {
+  if (tonBusy || !checkoutOrder || checkoutOrder.status !== 'pending') return;
+  if (phase !== 'idle' && !(phase === 'waiting' && selected === 'keeper')) return;
+  if (!window.PlataTonConnect) return notice('Не удалось загрузить подключение кошелька. Обновите страницу.', true);
+  clearFlow();
+  sheetIds.forEach(closeSheet);
+  phase = 'loading';
+  tonBusy = true;
+  try {
+    tonAccount = await window.PlataTonConnect.connect();
+    if (selected !== 'keeper' || !checkoutOrder || checkoutOrder.status !== 'pending') return;
+    phase = 'waiting';
+    showTonAccount();
+    notice('Tonkeeper подключён', false);
+  } catch (error) {
+    phase = 'idle';
+    if (error?.name !== 'TonConnectionCancelled') notice(error?.message || 'Не удалось подключить Tonkeeper', true);
+  } finally { tonBusy = false; if (selected === 'keeper' && phase === 'waiting') $('#btn-check').disabled = false; }
+}
+window.PlataTonConnect?.onChange((account, error) => {
+  tonAccount = account;
+  if (selected === 'keeper' && phase === 'waiting') showTonAccount();
+  if (error && selected === 'keeper') notice(error.message, true);
+});
 // CryptoBot integration: the Worker alone stores Crypto Pay credentials.
 const CRYPTO_WORKER_URL = 'https://shrill-salad-0763.dpl-payments.workers.dev/';
 const CRYPTO_SUPPORTED = new Set(['USDT','BTC','ETH','BNB']);
@@ -1684,6 +1726,7 @@ async function startCryptoPayment() {
 function startPayment() {
   if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
   if (selected === 'cryptobot') return startCryptoPayment();
+  if (selected === 'keeper') return startTonConnection();
   if (phase !== 'idle') return;
   clearFlow();
   phase = 'loading';
@@ -1788,6 +1831,7 @@ async function beginVerification() {
 }
 $('#btn-go').addEventListener('click', () => {
   if (phase !== 'waiting') return;
+  if (selected === 'keeper') return startTonConnection();
   if (selected === 'cryptobot') {
     if (!cryptoInvoice?.url) return notice('Счёт не создан',true);
     window.open(cryptoInvoice.url,'_blank','noopener,noreferrer');
@@ -1798,8 +1842,18 @@ $('#btn-go').addEventListener('click', () => {
     openSheet('transfer-sheet');
   } else notice('Этот способ оплаты пока не подключён',true);
 });
-$('#open-payment').addEventListener('click', () => { if (selected === 'cryptobot' && cryptoInvoice?.url) window.open(cryptoInvoice.url,'_blank','noopener,noreferrer'); else showPaymentSheet(); });
-$('#btn-check').addEventListener('click', beginVerification);
+$('#open-payment').addEventListener('click', () => { if (selected === 'keeper') return tonAccount ? showTonAccount() : startTonConnection(); if (selected === 'cryptobot' && cryptoInvoice?.url) window.open(cryptoInvoice.url,'_blank','noopener,noreferrer'); else showPaymentSheet(); });
+$('#btn-check').addEventListener('click', async () => {
+  if (selected === 'keeper' && phase === 'waiting') {
+    if (tonBusy) return;
+    tonBusy = true; $('#btn-check').disabled = true;
+    try { await window.PlataTonConnect.disconnect(); tonAccount = null; showTonAccount(); }
+    catch (_) { notice('Не удалось отключить кошелёк. Повторите попытку.', true); }
+    finally { tonBusy = false; $('#btn-check').disabled = false; }
+    return;
+  }
+  return beginVerification();
+});
 $('#btn-check-transfer').addEventListener('click', beginVerification);
 function openConfirmation(origin) {
   if (phase !== 'waiting') return;
