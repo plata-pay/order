@@ -14,6 +14,10 @@
    return result;
   },
   check(id,currency,tx_hash=''){if(tx_hash&&!/^0x[a-f0-9]{64}$/i.test(tx_hash))return Promise.reject(new Error('Укажите корректный хеш транзакции'));return request('/api/check',{id,currency,...(tx_hash?{tx_hash}:{})});},
-  qr(uri){if(typeof window.qrcode!=='function'||!/^ethereum:0x[a-f0-9]{40}@(1|56)\?value=[1-9]\d{0,29}$/.test(uri))throw new Error('Не удалось сформировать QR-код');const qr=window.qrcode(0,'M');qr.addData(uri);qr.make();return qr.createDataURL(6,4);}
+  qr(uri){
+   let valid=/^ethereum:0x[a-f0-9]{40}@(1|56)\?value=[1-9]\d{0,29}$/.test(uri);
+   if(!valid){try{const u=new URL(uri);valid=u.protocol==='ton:'&&u.hostname==='transfer'&&/^\/[A-Za-z0-9_-]{48}$/.test(u.pathname)&&/^[1-9]\d{0,18}$/.test(u.searchParams.get('amount')||'')&&/^plata:[a-z0-9]{4}(?:-[a-z0-9]{4}){3}:[a-f0-9]{32}$/.test(u.searchParams.get('text')||'')&&/^\d{10}$/.test(u.searchParams.get('exp')||'')&&[...u.searchParams.keys()].every(k=>['amount','text','exp'].includes(k));}catch{}}
+   if(typeof window.qrcode!=='function'||!valid)throw new Error('Не удалось сформировать QR-код');const qr=window.qrcode(0,'M');qr.addData(uri);qr.make();return qr.createDataURL(6,4);
+  }
  });
 })();
