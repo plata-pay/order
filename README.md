@@ -86,3 +86,17 @@ second button animation. Each pass may read the order and Toncenter; a valid
 receipt additionally requires the existing independent Main confirmation.
 There is no recurring GRAM polling. Repeated clicks during checking are ignored.
 The glass stylesheet preserves wallet integration and respects reduced motion.
+
+## ETH and BNB native transfers
+
+plata-evm-pay serves server-owned quotes and manual checks. Ethereum and BNB
+open the transfer sheet directly after loading: locally generated EIP-681 QR,
+recipient, exact amount and explicit chain. Each quote has a unique exact wei
+amount; do not round it. An optional transaction hash avoids long block scans.
+The service rejects failed, wrong-network, wrong-recipient, old and mismatched
+transfers, requires finalized canonical blocks, and prevents reuse across orders.
+It uses the existing orders D1 schema and one SQLite Durable Object namespace
+for quote/receipt metadata and serialized amount/transaction reservations.
+Owner ETH_RECIPIENT and BNB_RECIPIENT values must be configured before activation.
+Missing addresses fail closed; no demonstration address or fabricated QR is shown.
+Notifications are promoted above dialogs; unpaid results are negative notices.

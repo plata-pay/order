@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-contents3"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-evm4"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -1290,17 +1290,20 @@
 </dialog>
 <dialog aria-label="Перевод" class="sheet transfer-sheet" id="transfer-sheet" tabindex="-1">
 <div class="sheet-body">
-<div class="qr-wrap"><div class="qr-placeholder"><span>DEMO</span></div></div>
+<div class="qr-wrap"><img id="transfer-qr" alt="QR-код перевода с адресом, сетью и точной суммой" hidden/></div>
 <div class="field-list">
 <div class="field-row">
 <span class="field-row-label" data-en="Transfer address" data-ru="Адрес перевода">Адрес перевода</span>
-<span class="field-row-value" id="transfer-address"></span>
+<button class="field-row-value copy-value" id="transfer-address" type="button" aria-label="Скопировать адрес"></button>
 </div>
 <div class="field-row">
 <span class="field-row-label" data-en="Transfer amount" data-ru="Сумма перевода">Сумма перевода</span>
-<span class="field-row-value" id="transfer-amount"></span>
+<button class="field-row-value copy-value" id="transfer-amount" type="button" aria-label="Скопировать точную сумму"></button>
 </div>
 </div>
+<div class="field-row evm-network"><span class="field-row-label">Сеть</span><span class="field-row-value" id="transfer-network"></span></div>
+<p class="transfer-note">Переведите точную сумму в указанной сети. Комиссия кошелька оплачивается отдельно.</p>
+<details class="evm-hash-entry"><summary>Указать хеш перевода для быстрой проверки</summary><input id="evm-tx-hash" placeholder="0x…" aria-label="Хеш транзакции" autocomplete="off" spellcheck="false"/></details>
 <button class="btn-ghost" id="btn-check-transfer" type="button">Проверить</button>
 </div>
 </dialog>
@@ -1340,6 +1343,8 @@
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 
 
+<script src="/order/vendor/qrcode-generator-1.4.4.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
+<script src="/order/assets/evm-payment.js?v=20261016-evm4"></script>
 <script src="/order/assets/tonconnect.js?v=20261016-glass1"></script>
 <script src="/order/assets/gram-payment.js?v=20261016-glass1"></script>
 <script>(() => {
@@ -1511,6 +1516,7 @@ function openSheet(id) {
   if (!sheet || sheet.open) return;
   sheet.classList.remove('closing');
   sheet.showModal();
+  if ($('#top-notice').classList.contains('on')) promoteNotice();
 }
 function closeSheet(id) {
   const sheet = $('#' + id);
@@ -1530,16 +1536,26 @@ function later(callback, delay) {
     if (version === flowVersion) callback();
   }, delay);
 }
+function promoteNotice() {
+  const element = $('#top-notice');
+  try {
+    if (typeof element.showPopover === 'function') {
+      if (element.matches(':popover-open')) element.hidePopover();
+      element.showPopover();
+    } else {
+      const dialogs = [...document.querySelectorAll('dialog[open]')];
+      (dialogs.at(-1) || document.body).append(element);
+      element.style.display = 'inline-flex';
+    }
+  } catch (_) { element.style.display = 'inline-flex'; }
+}
 function notice(message, isError = false, isLoading = false, duration = 2500) {
   const element = $('#top-notice');
   $('#notice-text').textContent = message;
   $('#notice-icon').textContent = isLoading ? '' : (isError ? '×' : '✓');
   element.classList.toggle('loading', isLoading);
   element.classList.toggle('error', isError);
-  try {
-    if (typeof element.showPopover === 'function' && !element.matches(':popover-open')) element.showPopover();
-    else if (typeof element.showPopover !== 'function') element.style.display = 'inline-flex';
-  } catch (_) { element.style.display = 'inline-flex'; }
+  promoteNotice();
   element.classList.remove('on');
   requestAnimationFrame(() => element.classList.add('on'));
   if (noticeTimer !== null) clearTimeout(noticeTimer);
@@ -1612,7 +1628,7 @@ async function checkTonPayment(manual = true) {
     await waitUntil(5000);
     if (phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
     if (status === 'paid') { tonPaid(); return; }
-    if (manual) notice(failure ? failure.message : status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена', !!failure || status === 'expired' && !tonSent);
+    if (manual) notice(failure ? failure.message : status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена', true);
   } finally {
     tonBusy = false;
     button.removeAttribute('aria-busy');
@@ -1705,6 +1721,47 @@ window.PlataTonConnect?.onChange((account, error) => {
   tonAccount = account;
   if (error && selected === 'keeper') notice(error.message, true);
 });
+// EVM native transfers: one server quote, direct QR panel, manual receipt checking.
+let evmQuote = null, evmBusy = false;
+function showEvmTransfer() {
+  if (!evmQuote) return;
+  $('#transfer-address').textContent = evmQuote.recipient;
+  $('#transfer-amount').textContent = evmQuote.amount + ' ' + evmQuote.currency;
+  $('#transfer-network').textContent = evmQuote.currency === 'ETH' ? 'Ethereum Mainnet' : 'BNB Smart Chain (BEP-20)';
+  $('#transfer-qr').src = window.PlataEvmPayment.qr(evmQuote.payment_uri);
+  $('#transfer-qr').hidden = false;
+  $('#btn-check-transfer').disabled = evmBusy;
+  openSheet('transfer-sheet');
+}
+async function startEvmPayment() {
+  if (evmBusy || phase !== 'idle' || !checkoutOrder) return;
+  const currency = selected === 'ethereum' ? 'ETH' : 'BNB';
+  const orderId = checkoutOrder.id;
+  evmBusy = true; clearFlow(); phase = 'loading'; openSheet('loading-sheet');
+  try {
+    const result = await window.PlataEvmPayment.quote(orderId, currency);
+    if (checkoutOrder?.id !== orderId || !['ethereum','bnb'].includes(selected) || (selected === 'ethereum' ? 'ETH' : 'BNB') !== currency) return;
+    if (result.status === 'paid') { checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
+    evmQuote = result.quote;
+    $('#evm-tx-hash').value = '';
+    closeSheet('loading-sheet'); phase = 'waiting'; showEvmTransfer();
+  } catch (error) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод', true); }
+  finally { evmBusy = false; closeSheet('loading-sheet'); }
+}
+async function checkEvmPayment() {
+  if (evmBusy || phase !== 'waiting' || !evmQuote) return;
+  evmBusy = true;
+  const button = $('#btn-check-transfer'); button.disabled = true; button.setAttribute('aria-busy','true');
+  button.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+  try {
+    const result = await window.PlataEvmPayment.check(evmQuote.id,evmQuote.currency,$('#evm-tx-hash').value.trim());
+    if (result.status === 'paid') { checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
+    notice(result.status === 'confirming' ? 'Перевод найден. Ожидаем окончательного подтверждения сети.' : result.status === 'expired' ? 'Срок оплаты истёк' : result.scanning ? 'Платёж пока не найден. Поиск продолжается при следующей проверке; хеш перевода ускорит поиск.' : 'Платёж пока не найден', true, false, 4000);
+  } catch (error) { notice(error.message || 'Не удалось проверить перевод',true); }
+  finally { evmBusy = false; button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = 'Проверить'; }
+}
+$('#transfer-address').addEventListener('click',async()=>{if(!evmQuote)return;try{await navigator.clipboard.writeText(evmQuote.recipient);notice('Адрес скопирован');}catch{notice('Не удалось скопировать адрес',true);}});
+$('#transfer-amount').addEventListener('click',async()=>{if(!evmQuote)return;try{await navigator.clipboard.writeText(evmQuote.amount);notice('Сумма скопирована');}catch{notice('Не удалось скопировать сумму',true);}});
 // CryptoBot integration: the Worker alone stores Crypto Pay credentials.
 const CRYPTO_WORKER_URL = 'https://shrill-salad-0763.dpl-payments.workers.dev/';
 const CRYPTO_SUPPORTED = new Set(['USDT','GRAM','BTC','ETH','BNB']);
@@ -1828,6 +1885,7 @@ function startPayment() {
   if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
   if (selected === 'cryptobot') return startCryptoPayment();
   if (selected === 'keeper') return startTonPayment();
+  if (selected === 'ethereum' || selected === 'bnb') return startEvmPayment();
   if (phase !== 'idle') return;
   clearFlow();
   phase = 'loading';
@@ -1899,6 +1957,7 @@ function reset() {
 }
 async function beginVerification() {
   if (selected === 'keeper') return checkTonPayment(true);
+  if (selected === 'ethereum' || selected === 'bnb') return checkEvmPayment();
   if (phase !== 'waiting' || cryptoRequestBusy) return;
   const now = Date.now();
   if (now - lastCheckClick < CHECK_COOLDOWN_MS) return;
@@ -1920,7 +1979,7 @@ async function beginVerification() {
     if (status === 'paid') { checkoutOrder = {...checkoutOrder, status:'paid'}; showSuccess(); }
     else {
       phase = 'waiting';
-      notice(status === 'expired' ? 'Срок действия счёта истёк' : 'Оплата пока не поступила',status === 'expired');
+      notice(status === 'expired' ? 'Срок действия счёта истёк' : 'Оплата пока не поступила',true);
     }
   } catch (error) {
     if (phase === 'verifying') phase = 'waiting';
@@ -1937,14 +1996,11 @@ $('#btn-go').addEventListener('click', () => {
   if (selected === 'cryptobot') {
     if (!cryptoInvoice?.url) return notice('Счёт не создан',true);
     window.open(cryptoInvoice.url,'_blank','noopener,noreferrer');
-  } else if (directTransfers.has(selected)) {
-    closeSheet('action-sheet');
-    $('#transfer-address').textContent = 'DEMO · PAYMENT ADDRESS';
-    $('#transfer-amount').textContent = 'Пример перевода';
-    openSheet('transfer-sheet');
+  } else if (selected === 'ethereum' || selected === 'bnb') {
+    showEvmTransfer();
   } else notice('Этот способ оплаты пока не подключён',true);
 });
-$('#open-payment').addEventListener('click', () => { if (selected === 'keeper') return tonQuote ? showTonPaymentSheet() : startTonPayment(); if (selected === 'cryptobot' && cryptoInvoice?.url) window.open(cryptoInvoice.url,'_blank','noopener,noreferrer'); else showPaymentSheet(); });
+$('#open-payment').addEventListener('click', () => { if (selected === 'ethereum' || selected === 'bnb') return evmQuote ? showEvmTransfer() : startEvmPayment(); if (selected === 'keeper') return tonQuote ? showTonPaymentSheet() : startTonPayment(); if (selected === 'cryptobot' && cryptoInvoice?.url) window.open(cryptoInvoice.url,'_blank','noopener,noreferrer'); else showPaymentSheet(); });
 $('#btn-check').addEventListener('click', beginVerification);
 $('#btn-check-transfer').addEventListener('click', beginVerification);
 function openConfirmation(origin) {

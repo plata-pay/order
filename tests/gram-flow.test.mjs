@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-const code='//'+html.split('// Native GRAM payments:')[1].split('// CryptoBot integration:')[0];
+const code='//'+html.split('// Native GRAM payments:')[1].split('// EVM native transfers:')[0];
 let passed=0;
 const id='abcd-efgh-ijkl-mnop';
 const baseQuote={quote_id:'a'.repeat(32),order_id:id,rub_amount:'1.00',gram_amount:'0.008682063',nano_amount:'8682063',recipient:'UQ'+'A'.repeat(46),network:'-239',valid_until:Math.floor(Date.now()/1000)+180};

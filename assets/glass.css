@@ -59,3 +59,21 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 .legal-index-link .legal-item-summary { line-height:1.65; }
 .legal-index-link .legal-item-arrow { padding-top:calc(2 * var(--u)); justify-self:end; }
 @media (max-width:360px) { .legal-index-list .legal-index-link { padding:calc(18 * var(--u)) calc(13 * var(--u)); column-gap:calc(10 * var(--u)); grid-template-columns:calc(18 * var(--u)) minmax(0,1fr) calc(14 * var(--u)); } }
+/* Native transfers open directly; QR is encoded locally, never sent to an image service. */
+.transfer-sheet { height:min(82dvh,calc(665 * var(--u))); }
+.transfer-sheet .sheet-body { gap:calc(13 * var(--u)); align-items:stretch; }
+.transfer-sheet .qr-wrap { align-self:center; padding:calc(11 * var(--u)); border-radius:calc(17 * var(--u)); flex:none; }
+#transfer-qr { display:block; width:calc(174 * var(--u)); height:calc(174 * var(--u)); max-width:100%; image-rendering:pixelated; }
+.copy-value { border:0; padding:0; background:transparent; color:inherit; text-align:right; overflow-wrap:anywhere; font:inherit; }
+.evm-network { padding:calc(10 * var(--u)) calc(13 * var(--u)); border-radius:calc(12 * var(--u)); gap:calc(10 * var(--u)); }
+.transfer-note { margin:0; color:#a5a5b3; font-size:calc(11 * var(--u)); line-height:1.55; }
+.evm-hash-entry { font-size:calc(11 * var(--u)); color:#bdb9d1; }
+.evm-hash-entry summary { cursor:pointer; }
+#evm-tx-hash { width:100%; margin-top:calc(10 * var(--u)); padding:calc(11 * var(--u)); border:1px solid #ffffff2b; border-radius:calc(11 * var(--u)); background:#ffffff07; color:#fff; font:inherit; }
+#btn-check-transfer { flex:none; min-height:calc(46 * var(--u)); }
+.top-notice { z-index:2147483647; }
+.top-notice:not(.error):not(.loading) { background:linear-gradient(130deg,#ffffff12,#ffffff02),#123b2aef; border-color:#50d3944d; }
+.top-notice:not(.error):not(.loading) .notice-icon { background:#28b76b; color:#fff; }
+.top-notice.error { background:linear-gradient(130deg,#ffffff10,#ffffff02),#482026f2; border-color:#ff6c7952; }
+.top-notice.error .notice-icon { background:#df3f4b; color:#fff; }
+.top-notice.loading { background:linear-gradient(130deg,#ffffff10,#ffffff02),#24232bef; border-color:#ffffff30; }
