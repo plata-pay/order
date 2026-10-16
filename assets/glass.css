@@ -63,7 +63,7 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 /* Compact transfer card: each value stays on one line, QR takes remaining height. */
 .transfer-sheet { height:min(90dvh,700px); max-height:calc(100dvh - 12px); }
 .transfer-sheet .sheet-body { gap:clamp(7px,1.2dvh,12px); align-items:stretch; padding:clamp(12px,2dvh,20px); padding-bottom:max(12px,env(safe-area-inset-bottom)); overflow:hidden; }
-.transfer-sheet .qr-wrap { flex:1 1 0; min-height:76px; max-height:196px; width:100%; align-self:center; display:flex; justify-content:center; align-items:center; padding:0; background:none; border:0; box-shadow:none; }
+.transfer-sheet .qr-wrap { flex:1 1 0; min-height:76px; max-height:none; width:100%; align-self:center; display:flex; justify-content:center; align-items:center; padding:0; background:none; border:0; box-shadow:none; }
 #transfer-qr { display:block; width:auto; height:100%; max-height:196px; max-width:100%; aspect-ratio:1; object-fit:contain; image-rendering:pixelated; border:9px solid #fff; border-radius:18px; background:#fff; }
 .transfer-sheet .field-list { max-width:none; flex:none; gap:7px; }
 .transfer-sheet .field-row { flex:none; min-width:0; padding:9px 13px; gap:4px; border-radius:14px; }
@@ -101,6 +101,7 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 .quick-check-submit { min-height:48px; width:100%; font-size:14px; }
 .quick-check-back { align-self:center; padding:4px 10px; border:0; background:transparent; color:#aaa6b7; font:inherit; font-size:12px; line-height:1.5; cursor:pointer; }
 @media(max-height:600px) { .transfer-sheet .sheet-body { gap:6px; padding:11px 14px max(10px,env(safe-area-inset-bottom)); } .transfer-sheet .field-row { padding:7px 12px; gap:2px; } .transfer-sheet .field-row-label { font-size:10px; } .transfer-note { font-size:10px; } .quick-check-launch,#btn-check-transfer { min-height:40px; } .quick-check-orb { width:32px; height:32px; } }
+@media(max-height:520px) and (min-width:560px) { .transfer-sheet .sheet-body { display:grid; grid-template-columns:minmax(100px,.6fr) minmax(0,1.4fr); grid-auto-rows:min-content; column-gap:16px; align-content:center; } .transfer-sheet .qr-wrap { grid-column:1; grid-row:1 / span 6; height:min(64dvh,196px); min-height:0; } .transfer-sheet .field-list,.transfer-sheet .evm-network,#transfer-comment-row,.transfer-note,.quick-check-launch,#btn-check-transfer { grid-column:2; } }
 @media(prefers-reduced-motion:reduce) { .copy-icon { transition:none; } }
 .top-notice { z-index:2147483647; }
 .top-notice:not(.error):not(.loading) { background:linear-gradient(130deg,#ffffff12,#ffffff02),#123b2aef; border-color:#50d3944d; }
