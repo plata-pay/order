@@ -1746,7 +1746,7 @@ async function startEvmPayment() {
     $('#evm-tx-hash').value = '';
     closeSheet('loading-sheet'); phase = 'waiting'; showEvmTransfer();
   } catch (error) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод', true); }
-  finally { evmBusy = false; closeSheet('loading-sheet'); }
+  finally { evmBusy = false; closeSheet('loading-sheet'); if (phase === 'waiting') $('#btn-check-transfer').disabled = false; }
 }
 async function checkEvmPayment() {
   if (evmBusy || phase !== 'waiting' || !evmQuote) return;
