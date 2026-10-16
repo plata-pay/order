@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-transfer6"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-final7"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -2227,7 +2227,7 @@ async function loadCheckoutOrder(id) {
     const response = await fetch(ORDER_READER_URL + '?id=' + encodeURIComponent(id), {
       headers: {Accept:'application/json'}, signal:controller.signal, cache:'no-store'
     });
-    if (response.status === 404) throw new Error('Счёт не найден');
+    if (response.status === 404) throw Object.assign(new Error('Счёт не найден'), {status:404});
     if (!response.ok) throw new Error('Не удалось загрузить счёт. Попробуйте ещё раз.');
     const value = await response.json();
     if (!value || value.id !== id || typeof value.amount !== 'number' || !Number.isFinite(value.amount) || value.amount <= 0 || !['pending','paid','expired','cancelled'].includes(value.status)) throw new Error('Не удалось загрузить счёт. Попробуйте ещё раз.');
@@ -2239,7 +2239,7 @@ function showCheckoutError(message, retry, noId = false) {
   $('#paid-screen').hidden = true;
   $('#notfound-screen').hidden = false;
   $('#checkout-error-code').hidden = !noId;
-  $('#checkout-message').textContent = noId ? 'Не удалось загрузить инвойс' : message;
+  $('#checkout-message').textContent = message;
   $('#checkout-retry').hidden = !retry;
 }
 async function bootCheckout() {
@@ -2247,7 +2247,7 @@ async function bootCheckout() {
   $('#checkout-retry').disabled = true;
   const id = getOrderIdFromUrl();
   try {
-    if (!id) { showCheckoutError('Откройте ссылку на оплату заказа', false, true); return; }
+    if (!id) { showCheckoutError('Не удалось загрузить инвойс', false, true); return; }
     checkoutOrder = await loadCheckoutOrder(id);
     $('.order-id').textContent = checkoutOrder.id;
     $('.amount-value .sum').textContent = new Intl.NumberFormat('ru-RU', {maximumFractionDigits:2}).format(checkoutOrder.amount);
@@ -2258,7 +2258,7 @@ async function bootCheckout() {
     else { $('#page').style.display = ''; $('#page').classList.add('revealed'); }
   } catch (error) {
     checkoutOrder = null;
-    showCheckoutError(error?.name === 'AbortError' ? 'Сервис не ответил. Попробуйте ещё раз.' : (error?.message || 'Не удалось загрузить счёт'), true);
+    showCheckoutError(error?.name === 'AbortError' ? 'Сервис не ответил. Попробуйте ещё раз.' : (error?.message || 'Не удалось загрузить счёт'), error?.status !== 404, error?.status === 404);
   } finally {
     await new Promise(resolve => setTimeout(resolve, Math.max(0, 2000 - (Date.now() - started))));
     const loading = $('#fullscreen-loading');

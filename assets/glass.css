@@ -43,7 +43,8 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 .legal-index-list button,.legal-item { border-radius:calc(16 * var(--u)); background:linear-gradient(120deg,#ffffff0e,#ffffff03); border-color:#ffffff20; }
 .legal-sub-head { border-color:#ffffff17; }
 .dialog,.toast { border-radius:calc(23 * var(--u)); }
-.paid-screen { background:radial-gradient(ellipse at 50% 40%,#403b651f,transparent 65%),#09090d; }
+.paid-screen { position:fixed; inset:0; width:100%; height:100dvh; min-height:100dvh; margin:0; padding:0; border:0; border-radius:0; background:#fff; color:#202020; overflow:hidden; }
+.paid-success-card { flex:1 1 auto; width:100%; min-height:100%; padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom)); background:transparent; }
 .paid-check { box-shadow:inset 0 2px 0 #d3ffe34d,0 16px 55px #0ceb7720; }
 @media (hover:hover) and (pointer:fine) { .footer-button:hover { transform:translateY(-2px); } .continue:hover,.btn-primary:hover { transform:translateY(-1px); } }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) { .sheet,.method-menu,.detail-menu { background:#202026; } }
