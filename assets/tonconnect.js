@@ -98,12 +98,12 @@
       if (!account) throw new Error('Сначала подключите кошелёк');
       const invalid = () => { const error = new Error('Некорректные параметры перевода'); error.name = 'TonTransferInvalid'; throw error; };
       if (!transaction || typeof transaction !== 'object' || Object.keys(transaction).some(k => !['validUntil','network','from','messages'].includes(k))) invalid();
-      if (transaction.network !== '-239' || transaction.from !== account.address.toLowerCase() || !Number.isSafeInteger(transaction.validUntil) || transaction.validUntil <= Date.now()/1000 || transaction.validUntil > Date.now()/1000+181) invalid();
+      if (transaction.network !== '-239' || transaction.from !== account.address.toLowerCase() || !Number.isSafeInteger(transaction.validUntil) || transaction.validUntil <= Date.now()/1000 || transaction.validUntil > Date.now()/1000+1201) invalid();
       if (!Array.isArray(transaction.messages) || transaction.messages.length !== 1) invalid();
       const message = transaction.messages[0];
       if (!message || Object.keys(message).some(k => !['address','amount','payload'].includes(k)) || !/^[A-Za-z0-9_-]{48}$/.test(message.address || '') || !/^[1-9][0-9]{0,18}$/.test(message.amount || '') || typeof message.payload !== 'string' || message.payload.length > 512 || !/^[A-Za-z0-9+/=]+$/.test(message.payload)) invalid();
       // SDK success means broadcast only. Our separate server checks the receipt.
-      return connector.sendTransaction(transaction, {modals:['before'], notifications:['error'], returnStrategy:'back', skipRedirectToWallet:'never'});
+      return connector.sendTransaction(transaction, {modals:['before'], notifications:[], returnStrategy:'back', skipRedirectToWallet:'never'});
     },
     async disconnect() { if (ui) await ui.disconnect(); },
     onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); }

@@ -74,6 +74,8 @@ for(const scenario of ['testnet','invalid']){
  const {api,state}=environment();await api.connect();
  const tx={network:'-239',from:wallet.account.address,validUntil:Math.floor(Date.now()/1000)+120,messages:[{address:'UQ'+ 'A'.repeat(46),amount:'1000000',payload:'AAAA'}]};
  const pending=api.send(tx);assert.equal(state.sendInvoked,true);assert.equal(state.sendOptions.skipRedirectToWallet,'never');await pending;assert.equal(state.transaction.amount,undefined);assert.equal(state.transaction.messages[0].amount,'1000000');passed++;
+ const fullLength={...tx,validUntil:Math.floor(Date.now()/1000)+1200};await api.send(fullLength);assert.equal(state.transaction.validUntil,fullLength.validUntil);assert.equal(state.sendOptions.notifications.length,0);passed++;
+ const tooLong={...tx,validUntil:Math.floor(Date.now()/1000)+1205};await assert.rejects(async()=>api.send(tooLong));passed++;
  for(const change of [t=>t.network='-3',t=>t.from='0:'+ 'b'.repeat(64),t=>t.messages.push(t.messages[0]),t=>t.messages[0].stateInit='AAAA',t=>t.messages[0].amount='-1',t=>t.validUntil=1]){const bad=structuredClone(tx);change(bad);await assert.rejects(async()=>api.send(bad));passed++;}
 }
 console.log(JSON.stringify({passed,manifest_and_icon:true,pinned_sdk_integrity:true,connect_cancel_restore_disconnect:true,mainnet_only:true,only_explicit_bounded_native_transfer:true,no_payment_status_mutations:true,real_wallet:false}));

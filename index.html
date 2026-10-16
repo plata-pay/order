@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-final7"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-final8"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -1358,7 +1358,7 @@
 
 <script src="/order/vendor/qrcode-generator-1.4.4.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
 <script src="/order/assets/evm-payment.js?v=20261016-audit5"></script>
-<script src="/order/assets/tonconnect.js?v=20261016-glass1"></script>
+<script src="/order/assets/tonconnect.js?v=20261017-final8"></script>
 <script src="/order/assets/gram-payment.js?v=20261016-audit5"></script>
 <script>(() => {
 'use strict';
@@ -1562,6 +1562,16 @@ function promoteNotice() {
     }
   } catch (_) { element.style.display = 'inline-flex'; }
 }
+// Wallet SDK dialogs can enter the top layer after our own sheets.
+if (typeof MutationObserver === 'function') {
+  let noticeLayerFrame = null;
+  new MutationObserver(records => {
+    const element = $('#top-notice');
+    if (!element?.classList.contains('on') || !records.some(record => !element.contains(record.target))) return;
+    if (noticeLayerFrame !== null) return;
+    noticeLayerFrame = requestAnimationFrame(() => { noticeLayerFrame = null; if (element.classList.contains('on')) promoteNotice(); });
+  }).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
+}
 function notice(message, isError = false, isLoading = false, duration = 2500) {
   const element = $('#top-notice');
   $('#notice-text').textContent = message;
@@ -1570,7 +1580,7 @@ function notice(message, isError = false, isLoading = false, duration = 2500) {
   element.classList.toggle('error', isError);
   promoteNotice();
   element.classList.remove('on');
-  requestAnimationFrame(() => element.classList.add('on'));
+  requestAnimationFrame(() => { element.classList.add('on'); promoteNotice(); });
   if (noticeTimer !== null) clearTimeout(noticeTimer);
   noticeTimer = setTimeout(() => {
     element.classList.remove('on');
