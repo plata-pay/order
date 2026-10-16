@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-audit5"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-transfer6"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -1293,18 +1293,31 @@
 <div class="field-list">
 <div class="field-row">
 <span class="field-row-label" data-en="Transfer address" data-ru="Адрес перевода">Адрес перевода</span>
-<button class="field-row-value copy-value" id="transfer-address" type="button" aria-label="Скопировать адрес"></button>
+<button class="field-row-value copy-value" id="transfer-address" type="button" aria-label="Скопировать адрес"><span class="copy-text" id="transfer-address-text"></span><svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M15 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></svg></button>
 </div>
 <div class="field-row">
 <span class="field-row-label" data-en="Transfer amount" data-ru="Сумма перевода">Сумма перевода</span>
-<button class="field-row-value copy-value" id="transfer-amount" type="button" aria-label="Скопировать точную сумму"></button>
+<button class="field-row-value copy-value" id="transfer-amount" type="button" aria-label="Скопировать точную сумму"><span class="copy-text" id="transfer-amount-text"></span><svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M15 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></svg></button>
 </div>
 </div>
 <div class="field-row evm-network"><span class="field-row-label">Сеть</span><span class="field-row-value" id="transfer-network"></span></div>
-<div class="field-row" id="transfer-comment-row" hidden><span class="field-row-label">Комментарий · обязательно</span><button class="field-row-value copy-value" id="transfer-comment" type="button" aria-label="Скопировать комментарий"></button></div>
+<div class="field-row" id="transfer-comment-row" hidden><span class="field-row-label">Комментарий · обязательно</span><button class="field-row-value copy-value" id="transfer-comment" type="button" aria-label="Скопировать комментарий"><span class="copy-text" id="transfer-comment-text"></span><svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M15 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></svg></button></div>
 <p class="transfer-note" id="transfer-note">Переведите точную сумму в указанной сети. Комиссия кошелька оплачивается отдельно.</p>
-<details class="evm-hash-entry" id="transfer-hash-entry"><summary>Указать хеш перевода для быстрой проверки</summary><input id="evm-tx-hash" placeholder="0x…" aria-label="Хеш транзакции" autocomplete="off" spellcheck="false"/></details>
+<button class="quick-check-launch" id="transfer-hash-entry" type="button" aria-haspopup="dialog" aria-controls="quick-check-sheet">
+<span class="quick-check-orb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg></span>
+<span>Быстрая проверка платежа</span><svg class="quick-check-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+</button>
 <button class="btn-ghost" id="btn-check-transfer" type="button">Проверить</button>
+</div>
+</dialog>
+<dialog aria-label="Быстрая проверка платежа" class="sheet quick-check-sheet" id="quick-check-sheet" tabindex="-1">
+<div class="sheet-body">
+<div class="quick-check-head"><span class="quick-check-orb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg></span><button type="button" class="quick-check-close" id="quick-check-close" aria-label="Закрыть быструю проверку"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+<div class="quick-check-copy"><h2>Быстрая проверка платежа</h2><p>Уже отправили перевод? Укажите его хеш из истории кошелька — найдём транзакцию напрямую.</p></div>
+<label class="quick-check-input"><span>Хеш транзакции</span><input id="evm-tx-hash" placeholder="0x…" aria-label="Хеш транзакции" autocomplete="off" spellcheck="false" autocapitalize="off" enterkeyhint="go"/></label>
+<p class="quick-check-hint">Проверим получателя, точную сумму и подтверждение сети.</p>
+<button class="btn-ghost quick-check-submit" id="btn-quick-check" type="button">Проверить перевод</button>
+<button class="quick-check-back" id="quick-check-back" type="button">Назад к реквизитам</button>
 </div>
 </dialog>
 <dialog aria-label="Отмена операции" class="sheet confirm-sheet" id="confirm-sheet" tabindex="-1">
@@ -1369,7 +1382,7 @@ const methods = {
   usdt: {name:'USDT', icon:'₮', color:'#249c72', image:'https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/usdt.svg'}
 };
 const directTransfers = new Set(['ethereum', 'bnb', 'gram']);
-const sheetIds = ['loading-sheet', 'action-sheet', 'transfer-sheet', 'confirm-sheet', 'legal-sheet', 'legal-sub-sheet'];
+const sheetIds = ['loading-sheet', 'action-sheet', 'transfer-sheet', 'quick-check-sheet', 'confirm-sheet', 'legal-sheet', 'legal-sub-sheet'];
 let selected = '';
 let detail = '';
 let phase = 'idle';
@@ -1723,20 +1736,25 @@ window.PlataTonConnect?.onChange((account, error) => {
 });
 // EVM native transfers: one server quote, direct QR panel, manual receipt checking.
 let evmQuote = null, evmBusy = false;
+function updateTransferOverflow() {
+  for (const id of ['address','amount','comment']) { const text = $('#transfer-'+id+'-text'); text?.classList?.toggle('is-overflowing',text.scrollWidth > text.clientWidth + 1); }
+}
+if (typeof ResizeObserver === 'function') { const observer = new ResizeObserver(updateTransferOverflow); for (const id of ['address','amount','comment']) observer.observe($('#transfer-'+id+'-text')); }
 function showEvmTransfer() {
   if (!evmQuote) return;
-  $('#transfer-address').textContent = evmQuote.recipient;
-  $('#transfer-amount').textContent = evmQuote.amount + ' ' + evmQuote.currency;
+  $('#transfer-address-text').textContent = evmQuote.recipient;
+  $('#transfer-amount-text').textContent = evmQuote.amount + ' ' + evmQuote.currency;
   const gram = evmQuote.currency === 'GRAM';
   $('#transfer-network').textContent = gram ? 'TON Mainnet' : evmQuote.currency === 'ETH' ? 'Ethereum Mainnet' : 'BNB Smart Chain';
   $('#transfer-comment-row').hidden = !gram;
-  $('#transfer-comment').textContent = gram ? evmQuote.comment : '';
+  $('#transfer-comment-text').textContent = gram ? evmQuote.comment : '';
   $('#transfer-hash-entry').hidden = gram;
   $('#transfer-note').textContent = gram ? 'Комментарий обязателен: QR заполняет его автоматически. Реквизиты действуют до ' + new Date(evmQuote.valid_until * 1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) + '. Комиссия кошелька оплачивается отдельно.' : 'Переведите точную сумму в указанной сети. Комиссия кошелька оплачивается отдельно.';
   $('#transfer-qr').src = window.PlataEvmPayment.qr(evmQuote.payment_uri);
   $('#transfer-qr').hidden = false;
   $('#btn-check-transfer').disabled = evmBusy;
   openSheet('transfer-sheet');
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(updateTransferOverflow); else updateTransferOverflow();
 }
 async function startGramTransfer() {
   if (evmBusy || phase !== 'idle' || !checkoutOrder) return;
@@ -1768,18 +1786,27 @@ async function startEvmPayment() {
   } catch (error) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод', true); }
   finally { evmBusy = false; closeSheet('loading-sheet'); if (phase === 'waiting') $('#btn-check-transfer').disabled = false; }
 }
-async function checkEvmPayment() {
+async function checkEvmPayment(txHash = '') {
   if (evmBusy || phase !== 'waiting' || !evmQuote) return;
   evmBusy = true;
-  const button = $('#btn-check-transfer'); button.disabled = true; button.setAttribute('aria-busy','true');
-  button.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+  const button = $('#btn-check-transfer'), quickButton = $('#btn-quick-check');
+  for (const control of [button,quickButton]) { control.disabled = true; control.setAttribute('aria-busy','true'); control.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>'; }
   try {
-    const result = evmQuote.currency === 'GRAM' ? {status:await window.PlataGramPayment.serverStatus(evmQuote.id)} : await window.PlataEvmPayment.check(evmQuote.id,evmQuote.currency,$('#evm-tx-hash').value.trim());
+    const result = evmQuote.currency === 'GRAM' ? {status:await window.PlataGramPayment.serverStatus(evmQuote.id)} : await window.PlataEvmPayment.check(evmQuote.id,evmQuote.currency,txHash);
     if (result.status === 'paid') { if (evmQuote.currency === 'GRAM') window.PlataGramPayment.save(evmQuote.id,null); checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
     notice(result.status === 'confirming' ? 'Перевод найден. Ожидаем окончательного подтверждения сети.' : result.status === 'expired' ? 'Срок оплаты истёк' : result.scanning ? 'Платёж пока не найден. Поиск продолжается при следующей проверке; хеш перевода ускорит поиск.' : 'Платёж пока не найден', true, false, 4000);
   } catch (error) { notice(error.message || 'Не удалось проверить перевод',true); }
-  finally { evmBusy = false; button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = 'Проверить'; }
+  finally { evmBusy = false; for (const control of [button,quickButton]) { control.disabled = false; control.removeAttribute('aria-busy'); } button.textContent = 'Проверить'; quickButton.textContent = 'Проверить перевод'; }
 }
+function closeQuickCheck() { closeSheet('quick-check-sheet'); if (phase === 'waiting') $('#transfer-hash-entry').focus(); }
+$('#transfer-hash-entry').addEventListener('click',()=>{ if (phase === 'waiting' && evmQuote && evmQuote.currency !== 'GRAM' && !evmBusy) openSheet('quick-check-sheet'); });
+$('#quick-check-close').addEventListener('click',closeQuickCheck);
+$('#quick-check-back').addEventListener('click',closeQuickCheck);
+$('#quick-check-sheet').addEventListener('cancel',event=>{event.preventDefault();closeQuickCheck();});
+$('#quick-check-sheet').addEventListener('click',event=>{if(clickedOutside(event,$('#quick-check-sheet')))closeQuickCheck();});
+function submitQuickCheck() { if (evmBusy) return; if (!$('#evm-tx-hash').value.trim()) { notice('Укажите хеш перевода из истории кошелька',true); $('#evm-tx-hash').focus(); return; } return checkEvmPayment($('#evm-tx-hash').value.trim()); }
+$('#btn-quick-check').addEventListener('click',submitQuickCheck);
+$('#evm-tx-hash').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();submitQuickCheck();}});
 $('#transfer-address').addEventListener('click',async()=>{if(!evmQuote)return;try{await navigator.clipboard.writeText(evmQuote.recipient);notice('Адрес скопирован');}catch{notice('Не удалось скопировать адрес',true);}});
 $('#transfer-amount').addEventListener('click',async()=>{if(!evmQuote)return;try{await navigator.clipboard.writeText(evmQuote.amount);notice('Сумма скопирована');}catch{notice('Не удалось скопировать сумму',true);}});
 $('#transfer-comment').addEventListener('click',async()=>{if(evmQuote?.currency!=='GRAM')return;try{await navigator.clipboard.writeText(evmQuote.comment);notice('Комментарий скопирован');}catch{notice('Не удалось скопировать комментарий',true);}});
