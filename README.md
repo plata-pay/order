@@ -77,3 +77,12 @@ custom native transfer intent. Broadcast is not payment confirmation: browser
 Toncenter reads and independent Main verification remain required. Native coin
 is displayed as GRAM; do not substitute a GRAM jetton without changing token
 identity, pricing, transfer payloads and receipt verification.
+
+## Glass interface and bounded manual checks
+
+GRAM payment sheet displays the spinner and two buttons without an amount.
+Check runs two bounded verification passes, at 0 and 2.5 seconds, with a five
+second button animation. Each pass may read the order and Toncenter; a valid
+receipt additionally requires the existing independent Main confirmation.
+There is no recurring GRAM polling. Repeated clicks during checking are ignored.
+The glass stylesheet preserves wallet integration and respects reduced motion.

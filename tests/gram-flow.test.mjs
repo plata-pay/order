@@ -8,8 +8,8 @@ const id='abcd-efgh-ijkl-mnop';
 const baseQuote={quote_id:'a'.repeat(32),order_id:id,rub_amount:'1.00',gram_amount:'0.008682063',nano_amount:'8682063',recipient:'UQ'+'A'.repeat(46),network:'-239',valid_until:Math.floor(Date.now()/1000)+180};
 function setup({quoteFailure=false,sendFailure=null,expired=false}={}){
  const nodes=new Map(),events=[];let status='pending',successes=0,stored=null;
- const $=key=>{if(!nodes.has(key))nodes.set(key,{hidden:false,disabled:false,textContent:''});return nodes.get(key);};
- const sandbox={window:{},Date,console,$,selected:'keeper',phase:'idle',checkoutOrder:{id,amount:1,status:'pending'},sheetIds:['loading-sheet'],clearFlow(){},openSheet(){},closeSheet(){},notice(text){events.push('notice:'+text);},showPaymentSheet(){},showSuccess(){successes++;sandbox.phase='success';},later(callback){sandbox.scheduled=callback;}};
+ const $=key=>{if(!nodes.has(key))nodes.set(key,{hidden:false,disabled:false,textContent:'',setAttribute(){},removeAttribute(){}});return nodes.get(key);};
+ const sandbox={window:{},Date,console,AbortController,setTimeout,clearTimeout,$,selected:'keeper',phase:'idle',checkoutOrder:{id,amount:1,status:'pending'},sheetIds:['loading-sheet'],clearFlow(){},openSheet(){},closeSheet(){},notice(text){events.push('notice:'+text);},showPaymentSheet(){},showSuccess(){successes++;sandbox.phase='success';},later(callback){sandbox.scheduled=callback;}};
  let generation=0;
  sandbox.window.PlataGramPayment={async quote(){events.push('quote');if(quoteFailure)throw new Error('Адрес получателя ещё не настроен');return {...baseQuote,quote_id:(generation++?'b':'a').repeat(32)};},async prepare(){events.push('prepare');if(expired){expired=false;throw Object.assign(new Error('expired'),{status:409});}return {quote:{...baseQuote,quote_id:(generation>1?'b':'a').repeat(32)},transaction:{from:'0:'+'a'.repeat(64),messages:[{amount:baseQuote.nano_amount}]}};},open(){events.push('send');if(sendFailure)throw sendFailure;},async status(){events.push('status');return status;},save(_id,value){stored=value;},restore(){return stored;}};
  sandbox.window.PlataTonConnect={async connect(){events.push('connect');return {address:'0:'+'a'.repeat(64)};},async send(){events.push('send');if(sendFailure)throw sendFailure;return {boc:'broadcast-only'};},onChange(){}};
@@ -20,7 +20,10 @@ function setup({quoteFailure=false,sendFailure=null,expired=false}={}){
  const {sandbox,events,setStatus,getSuccesses}=setup();await sandbox.api.startTonPayment();assert.deepEqual(events.slice(0,3),['quote','connect','prepare']);assert.equal(sandbox.phase,'waiting');passed++;
  const sending=sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,1,'Wallet send must start in the click task, before any await');await sending;assert.equal(events.filter(e=>e==='send').length,1);assert.equal(sandbox.checkoutOrder.status,'pending');assert.equal(getSuccesses(),0);assert.equal(sandbox.api.getSent(),true);passed++;
  await sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,1);passed++;
- setStatus('confirming');await sandbox.api.checkTonPayment();assert.equal(getSuccesses(),0);passed++;
+ const statusCalls=events.filter(e=>e==='status').length; const started=Date.now();
+ setStatus('confirming');const checking=sandbox.api.checkTonPayment();await sandbox.api.checkTonPayment();await checking;
+ assert.equal(events.filter(e=>e==='status').length-statusCalls,2,'One click runs exactly two checks; duplicate click is ignored');
+ assert.ok(Date.now()-started>=4900,'Checking indicator lasts five seconds');assert.equal(sandbox.scheduled,undefined,'No automatic polling is scheduled');assert.equal(getSuccesses(),0);passed++;
  setStatus('paid');await sandbox.api.checkTonPayment();assert.equal(getSuccesses(),1);assert.equal(sandbox.checkoutOrder.status,'paid');passed++;
 }
 {

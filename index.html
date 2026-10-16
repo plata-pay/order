@@ -1088,6 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-glass1"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -1339,8 +1340,8 @@
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 
 
-<script src="/order/assets/tonconnect.js?v=20261016-tonconnect2"></script>
-<script src="/order/assets/gram-payment.js?v=20261016-tonconnect2"></script>
+<script src="/order/assets/tonconnect.js?v=20261016-glass1"></script>
+<script src="/order/assets/gram-payment.js?v=20261016-glass1"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1570,11 +1571,7 @@ function showPaymentSheet() {
 let tonAccount = null, tonQuote = null, tonBusy = false, tonSent = false, tonPrepared = null;
 function showTonPaymentSheet() {
   showPaymentSheet();
-  $('#ton-connect-info').hidden = false;
-  $('.tc-balance-label').textContent = 'К оплате';
-  $('#tc-balance-value').textContent = tonQuote ? tonQuote.gram_amount.replace(/0+$/, '').replace(/[.]$/, '') : '—';
-  $('.tc-balance-cur').textContent = 'GRAM';
-  $('#tc-hash').textContent = tonSent ? 'Ожидаем подтверждение в сети TON' : 'Сумма и получатель будут показаны в кошельке';
+  $('#ton-connect-info').hidden = true;
   $('#btn-go span').textContent = tonSent ? 'Проверяем оплату' : 'Оплатить';
   $('#btn-go').disabled = tonBusy || tonSent;
   $('#btn-check').textContent = 'Проверить';
@@ -1586,18 +1583,43 @@ function tonPaid() {
   phase = 'verifying';
   showSuccess();
 }
-function watchTonPayment() {
-  if (tonSent && selected === 'keeper' && phase === 'waiting') later(() => checkTonPayment(false), 4000);
-}
 async function checkTonPayment(manual = true) {
   if (tonBusy || selected !== 'keeper' || phase !== 'waiting' || !checkoutOrder) return;
+  const orderId = checkoutOrder.id;
   tonBusy = true;
+  const button = $('#btn-check');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.setAttribute('aria-label', 'Проверяем оплату');
+  button.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+  $('#btn-go').disabled = true;
+  const started = Date.now();
+  const waitUntil = offset => new Promise(resolve => setTimeout(resolve, Math.max(0, started + offset - Date.now())));
+  let status = 'pending', failure = null;
   try {
-    const status = await window.PlataGramPayment.status(checkoutOrder.id);
+    for (const offset of [0, 2500]) {
+      await waitUntil(offset);
+      if (phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2200);
+      try {
+        const result = await window.PlataGramPayment.status(orderId, {signal:controller.signal});
+        if (result === 'paid' || status !== 'paid') status = result;
+        failure = null;
+      } catch (error) { failure = error; }
+      finally { clearTimeout(timer); }
+    }
+    await waitUntil(5000);
+    if (phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
     if (status === 'paid') { tonPaid(); return; }
-    if (manual) notice(status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена', status === 'expired' && !tonSent);
-  } catch (error) { if (manual) notice(error.message, true); }
-  finally { tonBusy = false; if (phase === 'waiting') { showTonPaymentSheet(); watchTonPayment(); } }
+    if (manual) notice(failure ? failure.message : status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена', !!failure || status === 'expired' && !tonSent);
+  } finally {
+    tonBusy = false;
+    button.removeAttribute('aria-busy');
+    button.removeAttribute('aria-label');
+    button.textContent = 'Проверить';
+    if (phase === 'waiting') showTonPaymentSheet();
+  }
 }
 async function startTonPayment() {
   if (tonBusy || !checkoutOrder || checkoutOrder.status !== 'pending' || phase !== 'idle') return;
@@ -1627,7 +1649,7 @@ async function startTonPayment() {
     if (error?.name !== 'TonConnectionCancelled') notice(error.message || 'Не удалось подключить оплату GRAM', true);
   } finally {
     closeSheet('loading-sheet'); tonBusy = false;
-    if (phase === 'waiting') { showTonPaymentSheet(); watchTonPayment(); }
+    if (phase === 'waiting') { showTonPaymentSheet(); }
     else if (phase === 'loading') phase = 'idle';
   }
 }
@@ -1676,7 +1698,7 @@ async function sendTonPayment() {
     } else notice(error.message || 'Не удалось подготовить перевод', true);
   } finally {
     tonBusy = false;
-    if (phase === 'waiting') { showTonPaymentSheet(); watchTonPayment(); }
+    if (phase === 'waiting') { showTonPaymentSheet(); }
   }
 }
 window.PlataTonConnect?.onChange((account, error) => {
