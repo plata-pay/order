@@ -1339,8 +1339,8 @@
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 
 
-<script src="/order/assets/tonconnect.js?v=20261015-browser-ton1"></script>
-<script src="/order/assets/gram-payment.js?v=20261015-browser-ton1"></script>
+<script src="/order/assets/tonconnect.js?v=20261016-tonconnect2"></script>
+<script src="/order/assets/gram-payment.js?v=20261016-tonconnect2"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1566,7 +1566,7 @@ function showPaymentSheet() {
   $('#btn-check').hidden = false;
   openSheet('action-sheet');
 }
-// Native GRAM payments: server-owned quote, direct app link, verified receipt only.
+// Native GRAM payments: server-owned quote, official TON Connect, verified receipt only.
 let tonAccount = null, tonQuote = null, tonBusy = false, tonSent = false, tonPrepared = null;
 function showTonPaymentSheet() {
   showPaymentSheet();
@@ -1601,7 +1601,7 @@ async function checkTonPayment(manual = true) {
 }
 async function startTonPayment() {
   if (tonBusy || !checkoutOrder || checkoutOrder.status !== 'pending' || phase !== 'idle') return;
-  if (!window.PlataGramPayment) return notice('Обновите страницу для подключения оплаты', true);
+  if (!window.PlataGramPayment || !window.PlataTonConnect) return notice('Обновите страницу для подключения оплаты', true);
   clearFlow(); sheetIds.forEach(closeSheet); phase = 'loading'; tonBusy = true; tonPrepared = null;
   openSheet('loading-sheet');
   try {
@@ -1616,6 +1616,7 @@ async function startTonPayment() {
       if (tonQuote.status === 'paid') { tonPaid(); return; }
     }
     if (!tonSent) {
+      tonAccount = await window.PlataTonConnect.connect();
       tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id, tonQuote.quote_id);
       if (tonPrepared.status === 'paid') { tonPaid(); return; }
       tonQuote = tonPrepared.quote;
@@ -1632,6 +1633,7 @@ async function startTonPayment() {
 }
 async function sendTonPayment() {
   if (tonBusy || tonSent || phase !== 'waiting' || !tonQuote ) return;
+  if (!tonAccount) { phase = 'idle'; return startTonPayment(); }
   tonBusy = true; $('#btn-go').disabled = true;
   try {
     if (!tonPrepared || tonQuote.valid_until <= Date.now()/1000+15) {
@@ -1650,7 +1652,10 @@ async function sendTonPayment() {
     window.PlataGramPayment.save(checkoutOrder.id, {sent:true,quote:tonQuote});
     try {
       closeSheet('action-sheet');
-      window.PlataGramPayment.open(checkoutOrder.id, tonQuote.quote_id);
+      await window.PlataTonConnect.send({
+        validUntil:tonQuote.valid_until, network:tonQuote.network, from:tonAccount.address.toLowerCase(),
+        messages:[{address:tonQuote.recipient, amount:tonQuote.nano_amount, payload:tonQuote.payload}]
+      });
       notice('Подтвердите перевод в кошельке. Проверяем поступление.', false);
     } catch (error) {
       if (error?.name === 'UserRejectsError' || error?.code === 300 || error?.name === 'TonTransferInvalid') {

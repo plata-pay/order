@@ -17,7 +17,7 @@ function setup({quoteFailure=false,sendFailure=null,expired=false}={}){
  return {sandbox,events,nodes,setStatus:v=>status=v,getSuccesses:()=>successes};
 }
 {
- const {sandbox,events,setStatus,getSuccesses}=setup();await sandbox.api.startTonPayment();assert.deepEqual(events.slice(0,2),['quote','prepare']);assert.ok(!events.includes('connect'));assert.equal(sandbox.phase,'waiting');passed++;
+ const {sandbox,events,setStatus,getSuccesses}=setup();await sandbox.api.startTonPayment();assert.deepEqual(events.slice(0,3),['quote','connect','prepare']);assert.equal(sandbox.phase,'waiting');passed++;
  const sending=sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,1,'Wallet send must start in the click task, before any await');await sending;assert.equal(events.filter(e=>e==='send').length,1);assert.equal(sandbox.checkoutOrder.status,'pending');assert.equal(getSuccesses(),0);assert.equal(sandbox.api.getSent(),true);passed++;
  await sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,1);passed++;
  setStatus('confirming');await sandbox.api.checkTonPayment();assert.equal(getSuccesses(),0);passed++;

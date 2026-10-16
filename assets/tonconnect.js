@@ -59,10 +59,7 @@
     await deadline(connector.connectionRestored, 25000, 'Восстановление соединения заняло слишком много времени. Повторите попытку.');
     if (connector.wallet) {
       try {
-        const account = accountOf(connector.wallet);
-        const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-        if (!mobile || window.tonkeeper?.tonconnect || ['universal-link','custom-deeplink'].includes(connector.wallet.openMethod)) return account;
-        await connector.disconnect();
+        return accountOf(connector.wallet);
       }
       catch (error) { await connector.disconnect(); throw error; }
     }
@@ -74,19 +71,19 @@
         clearTimeout(timer);
         listeners.delete(changed);
         unsubscribeModal();
-        connector.closeSingleWalletModal();
+        connector.closeModal();
         if (error) reject(error); else resolve(account);
       }
       function changed(account, error) { if (error) finish(error); else if (account) finish(null, account); }
       listeners.add(changed);
-      unsubscribeModal = connector.onSingleWalletModalStateChange(state => {
+      unsubscribeModal = connector.onModalStateChange(state => {
         if (state.status === 'opened') opened = true;
         if (opened && state.status === 'closed' && state.closeReason === 'action-cancelled') {
           const error = new Error('Подключение отменено'); error.name = 'TonConnectionCancelled'; finish(error);
         }
       });
       timer = setTimeout(() => finish(new Error('Время подключения истекло. Повторите попытку.')), 180000);
-      connector.openSingleWalletModal('tonkeeper').catch(() => finish(new Error('Не удалось открыть Tonkeeper. Повторите попытку.')));
+      connector.openModal().catch(() => finish(new Error('Не удалось открыть Tonkeeper. Повторите попытку.')));
     });
   }
   window.PlataTonConnect = Object.freeze({

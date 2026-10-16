@@ -68,3 +68,12 @@ Validation:
 - `node tests/checkout.test.mjs`
 - `node tests/gram-flow.test.mjs`
 - Backend: `node test-browser-ton.mjs`, plus Main, CryptoBot and lifetime regressions.
+
+## 16 October: TON Connect restored
+
+The payment path now calls the official TON Connect wallet picker after quoting,
+then sendTransaction through the connected wallet. It no longer invokes the
+custom native transfer intent. Broadcast is not payment confirmation: browser
+Toncenter reads and independent Main verification remain required. Native coin
+is displayed as GRAM; do not substitute a GRAM jetton without changing token
+identity, pricing, transfer payloads and receipt verification.
