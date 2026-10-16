@@ -49,3 +49,13 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) { .sheet,.method-menu,.detail-menu { background:#202026; } }
 @media (prefers-reduced-motion:reduce) { .button-dots i { animation:none; } .method-toggle,.email,.footer-button,.btn-ghost,.btn-dark,.continue,.btn-primary,.btn-danger,.option { transition:none; } }
 @media (max-width:360px) { .sheet { inset-inline:8px; width:calc(100% - 16px); bottom:8px; } }
+
+/* Document index: separate cards, comfortable text inset and aligned columns. */
+.legal-index-list { gap:calc(15 * var(--u)); padding:0 calc(2 * var(--u)) calc(12 * var(--u)); }
+.legal-index-list .legal-index-link { display:grid; grid-template-columns:calc(20 * var(--u)) minmax(0,1fr) calc(15 * var(--u)); align-items:start; column-gap:calc(12 * var(--u)); padding:calc(21 * var(--u)) calc(17 * var(--u)); border:1px solid #ffffff20; margin:0; }
+.legal-index-link .legal-item-number { padding-top:calc(3 * var(--u)); line-height:1.5; }
+.legal-index-link .legal-item-copy { gap:calc(11 * var(--u)); }
+.legal-index-link .legal-item-title { line-height:1.5; }
+.legal-index-link .legal-item-summary { line-height:1.65; }
+.legal-index-link .legal-item-arrow { padding-top:calc(2 * var(--u)); justify-self:end; }
+@media (max-width:360px) { .legal-index-list .legal-index-link { padding:calc(18 * var(--u)) calc(13 * var(--u)); column-gap:calc(10 * var(--u)); grid-template-columns:calc(18 * var(--u)) minmax(0,1fr) calc(14 * var(--u)); } }

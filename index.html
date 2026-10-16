@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-crystal2"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261016-contents3"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -1707,7 +1707,8 @@ window.PlataTonConnect?.onChange((account, error) => {
 });
 // CryptoBot integration: the Worker alone stores Crypto Pay credentials.
 const CRYPTO_WORKER_URL = 'https://shrill-salad-0763.dpl-payments.workers.dev/';
-const CRYPTO_SUPPORTED = new Set(['USDT','BTC','ETH','BNB']);
+const CRYPTO_SUPPORTED = new Set(['USDT','GRAM','BTC','ETH','BNB']);
+const cryptoApiAsset = ticker => ticker === 'GRAM' ? 'TON' : ticker;
 let cryptoInvoice = null;
 let cryptoRequestBusy = false;
 let cryptoAttempt = 0;
@@ -1764,7 +1765,7 @@ async function cryptoCreateInvoice() {
   const order = checkoutOrder?.id || '';
   if (!order) throw new Error('Не найден номер заказа');
   const amount = getCheckoutRubAmount();
-  const response = await cryptoWorker('create_invoice',{asset:ticker,order_id:order,amount});
+  const response = await cryptoWorker('create_invoice',{asset:cryptoApiAsset(ticker),order_id:order,amount});
   const id = Number(response.invoice_id);
   const url = response.bot_invoice_url;
   if (!Number.isSafeInteger(id) || id <= 0 || !url || !/^https:\/\//i.test(url) || !response.ticket) throw new Error('CryptoBot не вернул корректный счёт');
@@ -1772,7 +1773,7 @@ async function cryptoCreateInvoice() {
 }
 async function cryptoCheckInvoice() {
   if (!cryptoInvoice) throw new Error('Счёт ещё не создан');
-  const result = await cryptoWorker('check_invoice',{invoice_id:cryptoInvoice.id,order_id:cryptoInvoice.order,asset:cryptoInvoice.ticker,amount:cryptoInvoice.amount,ticket:cryptoInvoice.ticket});
+  const result = await cryptoWorker('check_invoice',{invoice_id:cryptoInvoice.id,order_id:cryptoInvoice.order,asset:cryptoApiAsset(cryptoInvoice.ticker),amount:cryptoInvoice.amount,ticket:cryptoInvoice.ticket});
   const status = String(result.status || '').toLowerCase();
   if (!['paid','active','expired'].includes(status)) throw new Error('Неизвестный статус платежа');
   cryptoInvoice.status = status;
