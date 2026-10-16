@@ -35,61 +35,36 @@ Run `node tests/checkout.test.mjs` (Node.js 22+). It covers URL handoff, order l
 error handling, server-derived paid state and the absence of browser admin tokens.
 Backend modules and their SQLite tests are delivered separately.
 
-## TON Connect and native GRAM payments
+## Native GRAM payment flow
 
-Manifest: `https://plata-pay.github.io/order/tonconnect-manifest.json`.
-The SDK is `@tonconnect/ui` 5.0.1, stored locally with its Apache-2.0 license,
-verified npm tarball integrity and pinned SHA-384 browser integrity check.
-Analytics is off and the network is TON mainnet (`-239`). The wallet picker
-supports Tonkeeper and other compatible TON Connect wallets.
+The Tonkeeper payment button opens a pre-filled native transfer directly from
+its click handler. The removed custom connection dialogs and the separate
+`plata-ton-pay` service are not used by this page. The standard TON Connect
+manifest and SDK remain available, but connection is not required for this
+native transfer path.
 
-Converter: `https://plata-converter.dpl-payments.workers.dev/convert?from=RUB&to=GRAM&amount=5`.
-Payment service: `https://plata-ton-pay.dpl-payments.workers.dev`.
-GRAM means the native coin previously called Toncoin, not the unrelated jetton.
-Quotes use integer base units (10^9 per GRAM), round up to avoid underpayment,
-expire after at most 180 seconds, and never outlive their order's payment window.
-The quote is stored server-side. The client cannot supply the exchange rate,
-expected amount, recipient or payment status.
+Main owns `/api/ton/quote` and `/api/ton/confirm`. It reads the original order
+amount, obtains an authenticated Crypto Pay rate, and returns the destination,
+exact nano amount, unique comment, expiry and an AES-GCM encrypted receipt ticket.
+No merchant token or administrative/provider key is exposed in the ticket.
 
-Flow:
-1. The service reads the RUB amount from the order database and gets a quote.
-2. TON Connect opens only after conversion succeeds.
-3. The customer connects a wallet and sees the payment panel.
-4. Pay prepares the server's exact transaction and requests wallet approval.
-5. The service independently checks the finalized incoming on-chain receipt.
-6. Main stores `paid`; the page displays success and the paid link persists.
+The browser reads Toncenter's public message and transaction APIs without a key.
+It checks the destination, amount credited, comment hash, time window, successful
+execution and finalized mainnet transaction. A candidate hash and encrypted ticket
+are sent to Main, which fetches and independently checks the receipt before
+persisting `paid`. Browser code cannot grant paid status.
 
-A wallet's broadcast result is not a receipt. Confirmation requires the exact
-native-coin destination, quote-specific comment hash, sufficient credited
-amount, a successful non-bounced transaction and masterchain finality.
-A private settlement capability is shared only by Main and the payment service.
-The original two D1 schemas keep their existing columns; quotes and receipt
-tracking use a per-order Durable Object with automatic alarms. The verifier
-continues after the browser closes. If the indexer is delayed beyond the unpaid
-row cleanup, a genuine in-window finalized payment restores the original paid
-order. Verified receipts retry persistence until successful. Missing receipts
-are watched for up to 24 hours; long provider outages need reconciliation.
+Only one Toncenter request is made per polling cycle. Checking continues while
+the page is open and resumes from session storage after returning to this tab.
+There is no background payment monitor after this migration. Keep or reopen the
+original tab after confirming the transfer. A genuine in-window receipt can
+restore its original paid order if unpaid-row cleanup happened before indexing.
 
-The application requests only a specific native-coin transfer; it never requests
-seed phrases, private keys, arbitrary signatures or token permissions. Unknown
-broadcast outcomes disable repeat sending while receipt checking continues.
-An expired quote requires the user to review the refreshed amount and click
-Pay again. Account data and backend messages are rendered as text.
-
-**Activation:** the payment Worker requires the owner's public
-`PAYMENT_RECIPIENT` mainnet address, for an activated receiving wallet.
-There is no sample/default destination. Until that binding is configured,
-quote/transfer preparation fails closed. `TONCENTER_API_KEY` and
-`COINGECKO_API_KEY` are optional server Secrets for higher upstream limits.
-No merchant/admin credentials are shipped to the browser.
+The original two D1 schemas and four order columns are retained. Paid orders are
+not removed. A fresh quote is required after expiry; an ambiguous payment is not
+automatically resent. The application never asks for a seed phrase or private key.
 
 Validation:
 - `node tests/checkout.test.mjs`
-- `node tests/tonconnect.test.mjs`
 - `node tests/gram-flow.test.mjs`
-
-The backend has separate real-SQLite tests for quote tampering, underpayment,
-wrong recipients, finality, delayed indexing, secret separation and automatic
-confirmation. Wire-format fixtures are independently generated using
-`@ton/core@0.63.1`. Wallet/indexer responses in local tests are mocked;
-mainnet payment requires the owner's destination and customer wallet approval.
+- Backend: `node test-browser-ton.mjs`, plus Main, CryptoBot and lifetime regressions.
