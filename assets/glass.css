@@ -159,5 +159,5 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 @media(max-height:360px) { .wallet-wait-sheet { height:260px; } .keeper-pending { margin-top:38px; } }
 
 /* Solid VPN sheet with a clear edge against the dimmed page. */
-.vpn-sheet { border:1px solid #303744; border-bottom:0; background:#151a23; box-shadow:0 -14px 48px #0009; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.vpn-sheet { border:1px solid #303744; border-bottom:0; border-radius:32px 32px 0 0; background:#0d1016; box-shadow:0 -14px 48px #0009; -webkit-backdrop-filter:none; backdrop-filter:none; }
 .vpn-sheet::backdrop { background:#0009; -webkit-backdrop-filter:none; backdrop-filter:none; }
