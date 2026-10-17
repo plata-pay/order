@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-wallet9"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-wait10"/>
 </head>
 <body>
 <div aria-hidden="false" class="fullscreen-loading" id="fullscreen-loading">
@@ -1287,6 +1287,10 @@
 </div>
 </div>
 </dialog>
+<dialog aria-labelledby="wallet-wait-title" class="sheet wallet-wait-sheet" id="wallet-wait-sheet" tabindex="-1">
+<div class="sheet-body"><button class="quick-check-close wallet-wait-close" id="wallet-wait-close" type="button" aria-label="Закрыть ожидание оплаты"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+<div class="wallet-wait-spinner" aria-hidden="true"><span></span><i></i></div><h2 id="wallet-wait-title">Ожидаем оплату</h2><p>Подтвердите перевод в кошельке</p></div>
+</dialog>
 <dialog aria-label="Перевод" class="sheet transfer-sheet" id="transfer-sheet" tabindex="-1">
 <div class="sheet-body">
 <div class="qr-wrap"><img id="transfer-qr" alt="QR-код перевода с адресом, сетью и точной суммой" hidden/></div>
@@ -1322,7 +1326,7 @@
 </dialog>
 <dialog aria-labelledby="vpn-title" class="sheet vpn-sheet" id="vpn-sheet" tabindex="-1">
 <div class="sheet-body">
-<div class="vpn-message"><div class="vpn-globe" aria-hidden="true"><svg viewBox="0 0 240 240" fill="none"><defs><radialGradient id="vpn-ball" cx=".28" cy=".22" r=".85"><stop stop-color="#c3d9ff"/><stop offset=".28" stop-color="#6f83bc"/><stop offset=".7" stop-color="#30364d"/><stop offset="1" stop-color="#12121c"/></radialGradient><linearGradient id="vpn-grid" x1="40" y1="40" x2="195" y2="210" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#a5aaf7" stop-opacity=".28"/></linearGradient><clipPath id="vpn-clip"><circle cx="120" cy="120" r="83"/></clipPath></defs><ellipse cx="125" cy="218" rx="65" ry="9" fill="#000" opacity=".3"/><g transform="rotate(-24 120 120)"><circle cx="120" cy="120" r="83" fill="url(#vpn-ball)"/><g clip-path="url(#vpn-clip)" stroke="url(#vpn-grid)" stroke-width="2"><ellipse cx="120" cy="120" rx="32" ry="83"/><ellipse cx="120" cy="120" rx="62" ry="83"/><path d="M37 120h166M120 37v166"/><ellipse cx="120" cy="84" rx="78" ry="18"/><ellipse cx="120" cy="157" rx="78" ry="18"/><ellipse cx="120" cy="120" rx="83" ry="27"/></g><circle cx="120" cy="120" r="83" stroke="#d9e0ff" stroke-opacity=".4"/><path d="M63 82a69 69 0 0 1 61-31" stroke="#fff" stroke-opacity=".6" stroke-width="3" stroke-linecap="round"/></g><path d="M27 143c-19 24 13 39 82 26s126-48 111-65" stroke="#c1b9ff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/></svg></div><h2 id="vpn-title">Включите VPN</h2><p>Если уже включён — поменяйте регион или отключите DNS</p></div>
+<div class="vpn-message"><div class="vpn-globe" aria-hidden="true"><svg viewBox="0 0 240 240" fill="none"><defs><radialGradient id="vpn-ball" cx=".28" cy=".22" r=".85"><stop stop-color="#c3d9ff"/><stop offset=".28" stop-color="#6f83bc"/><stop offset=".7" stop-color="#30364d"/><stop offset="1" stop-color="#12121c"/></radialGradient><linearGradient id="vpn-grid" x1="40" y1="40" x2="195" y2="210" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#a5aaf7" stop-opacity=".28"/></linearGradient><linearGradient id="vpn-tile" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity=".02"/></linearGradient><clipPath id="vpn-clip"><circle cx="120" cy="120" r="83"/></clipPath></defs><rect x="14" y="14" width="212" height="212" rx="44" fill="url(#vpn-tile)" stroke="#ffffff28"/><ellipse cx="125" cy="218" rx="65" ry="9" fill="#000" opacity=".3"/><g transform="rotate(-24 120 120)"><circle cx="120" cy="120" r="83" fill="url(#vpn-ball)"/><g clip-path="url(#vpn-clip)" stroke="url(#vpn-grid)" stroke-width="2"><ellipse cx="120" cy="120" rx="32" ry="83"/><ellipse cx="120" cy="120" rx="62" ry="83"/><path d="M37 120h166M120 37v166"/><ellipse cx="120" cy="84" rx="78" ry="18"/><ellipse cx="120" cy="157" rx="78" ry="18"/><ellipse cx="120" cy="120" rx="83" ry="27"/></g><circle cx="120" cy="120" r="83" stroke="#d9e0ff" stroke-opacity=".4"/><path d="M63 82a69 69 0 0 1 61-31" stroke="#fff" stroke-opacity=".6" stroke-width="3" stroke-linecap="round"/></g><path d="M27 143c-19 24 13 39 82 26s126-48 111-65" stroke="#c1b9ff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/><circle cx="186" cy="61" r="25" fill="#e45c68"/><path d="m178 53 16 16m0-16-16 16" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg></div><h2 id="vpn-title">Включите VPN</h2><p>Уже включён? Смените регион или отключите DNS.</p></div>
 <button class="vpn-refresh" id="vpn-refresh" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 6a8 8 0 0 1 13 3l1 3M4 12l1 3a8 8 0 0 0 13 3"/></svg><span>Обновить</span></button>
 </div>
 </dialog>
@@ -1364,8 +1368,8 @@
 
 <script src="/order/vendor/qrcode-generator-1.4.4.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
 <script src="/order/assets/evm-payment.js?v=20261016-audit5"></script>
-<script src="/order/assets/tonconnect.js?v=20261017-wallet9"></script>
-<script src="/order/assets/gram-payment.js?v=20261017-wallet9"></script>
+<script src="/order/assets/tonconnect.js?v=20261017-wait10"></script>
+<script src="/order/assets/gram-payment.js?v=20261017-wait10"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1388,7 +1392,7 @@ const methods = {
   usdt: {name:'USDT', icon:'₮', color:'#249c72', image:'https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/svg/color/usdt.svg'}
 };
 const directTransfers = new Set(['ethereum', 'bnb', 'gram']);
-const sheetIds = ['loading-sheet', 'action-sheet', 'transfer-sheet', 'quick-check-sheet', 'vpn-sheet', 'confirm-sheet', 'legal-sheet', 'legal-sub-sheet'];
+const sheetIds = ['loading-sheet', 'action-sheet', 'wallet-wait-sheet', 'transfer-sheet', 'quick-check-sheet', 'vpn-sheet', 'confirm-sheet', 'legal-sheet', 'legal-sub-sheet'];
 let selected = '';
 let detail = '';
 let phase = 'idle';
@@ -1605,6 +1609,7 @@ function showPaymentSheet() {
   if (oldTitle) oldTitle.remove();
   $('#action-dots').hidden = false;
   $('#ton-connect-info').hidden = true;
+  $('#btn-go').hidden = false;
   $('#btn-go').disabled = false;
   $('#btn-go span').textContent = 'Оплатить';
   $('#btn-check').textContent = 'Проверить';
@@ -1617,12 +1622,54 @@ let tonAccount = null, tonQuote = null, tonBusy = false, tonSent = false, tonPre
 function showTonPaymentSheet() {
   showPaymentSheet();
   $('#ton-connect-info').hidden = true;
-  $('#btn-go span').textContent = 'Открыть кошелёк';
+  $('#btn-go span').textContent = 'Перейти к оплате';
   $('#btn-go').disabled = tonBusy;
   $('#btn-check').textContent = 'Проверить';
   $('#btn-check').disabled = tonBusy;
+  $('#btn-check').hidden = true;
+  $('#action-dots').hidden = true;
 }
+let tonWaiting = false, tonPollTimer = null, tonPollAbort = null, tonPollVersion = 0;
+function stopTonPolling() {
+  tonPollVersion++;
+  if (tonPollTimer !== null) clearTimeout(tonPollTimer);
+  tonPollTimer = null;
+  tonPollAbort?.abort(); tonPollAbort = null;
+}
+function startTonPolling() {
+  stopTonPolling();
+  if (!tonWaiting || (typeof document !== 'undefined' && document.hidden)) return;
+  const version = tonPollVersion, orderId = checkoutOrder?.id;
+  const active = () => tonWaiting && version === tonPollVersion && phase === 'waiting' && selected === 'keeper' && checkoutOrder?.id === orderId;
+  async function tick() {
+    tonPollTimer = null;
+    if (!active()) return;
+    if (Date.now()/1000 > tonQuote.valid_until + 120) { stopTonPolling(); notice('Срок оплаты истёк',true); return; }
+    const controller = new AbortController(); tonPollAbort = controller;
+    const timeout = setTimeout(()=>controller.abort(),4500), started = Date.now(); let delay = 5000;
+    try {
+      const status = await window.PlataGramPayment.serverStatus(orderId,{signal:controller.signal});
+      if (!active()) return;
+      if (status === 'paid') { tonPaid(); return; }
+    } catch(error) { if (error.status === 429) delay = 60000; }
+    finally { clearTimeout(timeout); if (tonPollAbort === controller) tonPollAbort = null; }
+    if (active()) tonPollTimer = setTimeout(tick,Math.max(0,delay-(Date.now()-started)));
+  }
+  tonPollTimer = setTimeout(tick,5000);
+}
+function showTonWaiting() {
+  tonWaiting = true;
+  closeSheet('action-sheet'); openSheet('wallet-wait-sheet'); startTonPolling();
+}
+function closeTonWaiting() { tonWaiting = false; stopTonPolling(); reset(); }
+$('#wallet-wait-close').addEventListener('click',closeTonWaiting);
+$('#wallet-wait-sheet').addEventListener('cancel',event=>{event.preventDefault();closeTonWaiting();});
+$('#wallet-wait-sheet').addEventListener('click',event=>{if(clickedOutside(event,$('#wallet-wait-sheet')))closeTonWaiting();});
+if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange',()=>{if(tonWaiting) document.hidden ? stopTonPolling() : startTonPolling();});
+window.addEventListener?.('pagehide',stopTonPolling);
+window.addEventListener?.('pageshow',()=>{if(tonWaiting)startTonPolling();});
 function tonPaid() {
+  tonWaiting = false; stopTonPolling();
   checkoutOrder = {...checkoutOrder, status:'paid'};
   window.PlataGramPayment.save(checkoutOrder.id, null);
   phase = 'verifying';
@@ -1684,7 +1731,7 @@ async function startTonPayment() {
   finally { closeSheet('loading-sheet'); tonBusy = false; if (phase === 'waiting') showTonPaymentSheet(); }
 }
 async function sendTonPayment() {
-  if (tonBusy || phase !== 'waiting' || !tonQuote) return;
+  if (tonBusy || tonWaiting || phase !== 'waiting' || !tonQuote) return;
   tonBusy = true; $('#btn-go').disabled = true;
   try {
     if (!tonPrepared || tonQuote.valid_until <= Date.now()/1000+15) {
@@ -1692,15 +1739,16 @@ async function sendTonPayment() {
       if (tonQuote.status === 'paid') { tonPaid(); return; }
       tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
       tonQuote = tonPrepared.quote;
-      notice('Параметры обновлены. Нажмите «Открыть кошелёк».',false);
+      notice('Параметры обновлены. Нажмите «Перейти к оплате».',false);
       return;
     }
     // Opening the prepared link is synchronous in this click, never an automatic send.
+    showTonWaiting();
     window.PlataGramPayment.open(checkoutOrder.id,tonQuote.quote_id);
     tonSent = true;
     window.PlataGramPayment.save(checkoutOrder.id,{sent:true,quote:tonQuote});
-  } catch(error) { notice(error.message || 'Не удалось открыть перевод в кошельке',true); }
-  finally { tonBusy = false; if (phase === 'waiting') showTonPaymentSheet(); }
+  } catch(error) { tonWaiting = false; stopTonPolling(); closeSheet('wallet-wait-sheet'); notice(error.message || 'Не удалось открыть перевод в кошельке',true); }
+  finally { tonBusy = false; if (phase === 'waiting' && !tonWaiting) showTonPaymentSheet(); }
 }
 window.PlataTonConnect?.onChange((account, error) => {
   tonAccount = account;
@@ -1944,6 +1992,7 @@ $('#payment-form').addEventListener('submit', event => {
 });
 function showSuccess() {
   if (phase !== 'verifying') return;
+  tonWaiting = false; stopTonPolling();
   clearFlow();
   phase = 'success';
   sheetIds.forEach(closeSheet);
@@ -1959,6 +2008,7 @@ function showSuccess() {
   $('#paid-screen').hidden = false;
 }
 function reset() {
+  tonWaiting = false; stopTonPolling();
   if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
   cryptoAttempt++;
   // Keep a created invoice when returning to checkout to avoid duplicates.

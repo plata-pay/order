@@ -3,43 +3,35 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const code='//'+html.split('// Native GRAM payments:')[1].split('// EVM native transfers:')[0];
+function setup(){
+ let clock=Date.now(),serial=0,status='pending',saved=null,success=0,openError=false,deferred=null;
+ const timers=new Map(),nodes=new Map(),events=[],handlers={};
+ const quote={quote_id:'a'.repeat(32),order_id:'abcd-efgh-ijkl-mnop',valid_until:Math.floor(clock/1000)+1200};
+ const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,disabled:false,textContent:'',open:false,addEventListener(type,fn){this[type]=fn;},setAttribute(){},removeAttribute(){}});return nodes.get(id);};
+ const e={window:{addEventListener(){}},document:{hidden:false,addEventListener:(type,fn)=>handlers[type]=fn},Date:{now:()=>clock},AbortController,console,$:node,selected:'keeper',phase:'idle',checkoutOrder:{id:quote.order_id,status:'pending'},sheetIds:['loading-sheet','action-sheet','wallet-wait-sheet'],clearFlow(){},openSheet:id=>{node('#'+id).open=true;events.push('open:'+id);},closeSheet:id=>node('#'+id).open=false,notice:text=>events.push('notice:'+text),showPaymentSheet(){node('#action-sheet').open=true;node('#btn-check').hidden=false;},showSuccess(){success++;e.phase='success';},reset(){e.phase='idle';node('#wallet-wait-sheet').open=false;},setTimeout(fn,delay){timers.set(++serial,{fn,at:clock+delay});return serial;},clearTimeout:id=>timers.delete(id)};
+ e.window.PlataGramPayment={async quote(){events.push('quote');return {...quote};},async prepare(){events.push('prepare');return {quote:{...quote}};},open(){events.push('wallet');if(openError)throw new Error('Cannot open wallet');},save(id,value){saved=value;},restore(){return saved;},async serverStatus(){events.push('check');return deferred?await deferred:status;}};
+ e.window.PlataTonConnect={onChange(){},connect(){throw new Error('Connection is not required');}};
+ vm.createContext(e);vm.runInContext(code+'\nglobalThis.api={startTonPayment,sendTonPayment,closeTonWaiting};',e);
+ const flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
+ async function advance(ms){const end=clock+ms;for(;;){const due=[...timers].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!due)break;clock=due[1].at;timers.delete(due[0]);due[1].fn();await flush();}clock=end;await flush();}
+ return {e,node,events,handlers,advance,flush,success:()=>success,setStatus:v=>status=v,setError:()=>openError=true,defer:p=>deferred=p};
+}
 let passed=0;
-const id='abcd-efgh-ijkl-mnop';
-const baseQuote={quote_id:'a'.repeat(32),order_id:id,rub_amount:'1.00',gram_amount:'0.008682063',nano_amount:'8682063',recipient:'UQ'+'A'.repeat(46),network:'-239',valid_until:Math.floor(Date.now()/1000)+180};
-function setup({quoteFailure=false,sendFailure=null,expired=false}={}){
- const nodes=new Map(),events=[];let status='pending',successes=0,stored=null;
- const $=key=>{if(!nodes.has(key))nodes.set(key,{hidden:false,disabled:false,textContent:'',setAttribute(){},removeAttribute(){}});return nodes.get(key);};
- const sandbox={window:{},Date,console,AbortController,setTimeout,clearTimeout,$,selected:'keeper',phase:'idle',checkoutOrder:{id,amount:1,status:'pending'},sheetIds:['loading-sheet'],clearFlow(){},openSheet(){},closeSheet(){},notice(text){events.push('notice:'+text);},showPaymentSheet(){},showSuccess(){successes++;sandbox.phase='success';},later(callback){sandbox.scheduled=callback;}};
- let generation=0;
- sandbox.window.PlataGramPayment={async quote(){events.push('quote');if(quoteFailure)throw new Error('Адрес получателя ещё не настроен');return {...baseQuote,quote_id:(generation++?'b':'a').repeat(32)};},async prepare(){events.push('prepare');if(expired){expired=false;throw Object.assign(new Error('expired'),{status:409});}return {quote:{...baseQuote,quote_id:(generation>1?'b':'a').repeat(32)},transaction:{from:'0:'+'a'.repeat(64),messages:[{amount:baseQuote.nano_amount}]}};},open(){events.push('send');if(sendFailure)throw sendFailure;},async serverStatus(){events.push('status');return status;},save(_id,value){stored=value;},restore(){return stored;}};
- sandbox.window.PlataTonConnect={async connect(){events.push('connect');return {address:'0:'+'a'.repeat(64)};},async send(){events.push('send');if(sendFailure)throw sendFailure;return {boc:'broadcast-only'};},onChange(){}};
- vm.createContext(sandbox);vm.runInContext(code+'\nglobalThis.api={startTonPayment,sendTonPayment,checkTonPayment,getSent:()=>tonSent,expireQuote:()=>{tonQuote.valid_until=1;}};',sandbox);
- return {sandbox,events,nodes,setStatus:v=>status=v,getSuccesses:()=>successes};
+{
+ const t=setup();await t.e.api.startTonPayment();assert.ok(t.events.includes('prepare'));assert.equal(t.node('#btn-go span').textContent,'Перейти к оплате');assert.equal(t.node('#btn-check').hidden,true);passed++;
+ const opening=t.e.api.sendTonPayment();assert.equal(t.events.filter(x=>x==='wallet').length,1);await opening;assert.equal(t.node('#action-sheet').open,false);assert.equal(t.node('#wallet-wait-sheet').open,true);assert.equal(t.success(),0);passed++;
+ await t.e.api.sendTonPayment();assert.equal(t.events.filter(x=>x==='wallet').length,1);passed++;
+ await t.advance(4999);assert.equal(t.events.filter(x=>x==='check').length,0);await t.advance(1);assert.equal(t.events.filter(x=>x==='check').length,1);await t.advance(5000);assert.equal(t.events.filter(x=>x==='check').length,2);passed++;
+ t.e.api.closeTonWaiting();const before=t.events.filter(x=>x==='check').length;await t.advance(15000);assert.equal(t.events.filter(x=>x==='check').length,before);assert.equal(t.e.phase,'idle');passed++;
+ await t.e.api.startTonPayment();await t.e.api.sendTonPayment();assert.equal(t.events.filter(x=>x==='wallet').length,2);t.setStatus('paid');await t.advance(5000);assert.equal(t.success(),1);assert.equal(t.e.checkoutOrder.status,'paid');const paidCount=t.events.filter(x=>x==='check').length;await t.advance(15000);assert.equal(t.events.filter(x=>x==='check').length,paidCount);passed++;
 }
 {
- const {sandbox,events,setStatus,getSuccesses}=setup();await sandbox.api.startTonPayment();assert.deepEqual(events.slice(0,2),['quote','prepare']);assert.equal(sandbox.phase,'waiting');passed++;
- const sending=sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,1,'Wallet send must start in the click task, before any await');await sending;assert.equal(events.filter(e=>e==='send').length,1);assert.equal(sandbox.checkoutOrder.status,'pending');assert.equal(getSuccesses(),0);assert.equal(sandbox.api.getSent(),true);passed++;
- await sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,2,'Only another explicit click reopens the wallet');passed++;
- const statusCalls=events.filter(e=>e==='status').length; const started=Date.now();
- setStatus('confirming');const checking=sandbox.api.checkTonPayment();await sandbox.api.checkTonPayment();await checking;
- assert.equal(events.filter(e=>e==='status').length-statusCalls,2,'One click runs exactly two checks; duplicate click is ignored');
- assert.ok(Date.now()-started>=4900,'Checking indicator lasts five seconds');assert.equal(sandbox.scheduled,undefined,'No automatic polling is scheduled');assert.equal(getSuccesses(),0);passed++;
- setStatus('paid');await sandbox.api.checkTonPayment();assert.equal(getSuccesses(),1);assert.equal(sandbox.checkoutOrder.status,'paid');passed++;
+ const t=setup();await t.e.api.startTonPayment();t.setError();await t.e.api.sendTonPayment();assert.equal(t.node('#wallet-wait-sheet').open,false);await t.advance(15000);assert.ok(!t.events.includes('check'));passed++;
 }
 {
- const {sandbox,events}=setup({quoteFailure:true});await sandbox.api.startTonPayment();assert.ok(!events.includes('connect'));assert.equal(sandbox.phase,'idle');passed++;
+ const t=setup();await t.e.api.startTonPayment();await t.e.api.sendTonPayment();t.e.document.hidden=true;t.handlers.visibilitychange();await t.advance(10000);assert.ok(!t.events.includes('check'));t.e.document.hidden=false;t.handlers.visibilitychange();await t.advance(5000);assert.equal(t.events.filter(x=>x==='check').length,1);t.e.api.closeTonWaiting();passed++;
 }
 {
- const {sandbox,events}=setup({expired:true});await sandbox.api.startTonPayment();await sandbox.api.startTonPayment();assert.equal(events.filter(e=>e==='send').length,0);assert.equal(events.filter(e=>e==='quote').length,2);assert.equal(sandbox.api.getSent(),false);passed++;
+ const t=setup();let resolve;t.defer(new Promise(r=>resolve=r));await t.e.api.startTonPayment();await t.e.api.sendTonPayment();await t.advance(5000);t.e.api.closeTonWaiting();resolve('paid');await t.flush();assert.equal(t.success(),0);assert.equal(t.e.checkoutOrder.status,'pending');passed++;
 }
-{
- const {sandbox}=setup({sendFailure:Object.assign(new Error('reject'),{name:'UserRejectsError'})});await sandbox.api.startTonPayment();await sandbox.api.sendTonPayment();assert.equal(sandbox.api.getSent(),false);assert.equal(sandbox.checkoutOrder.status,'pending');passed++;
-}
-{
- const {sandbox,events}=setup({sendFailure:new Error('network vanished')});await sandbox.api.startTonPayment();await sandbox.api.sendTonPayment();assert.equal(sandbox.api.getSent(),false);await sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,2);assert.equal(sandbox.checkoutOrder.status,'pending');passed++;
-}
-{
- const {sandbox,events}=setup();await sandbox.api.startTonPayment();sandbox.api.expireQuote();await sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,0);assert.equal(events.filter(e=>e==='quote').length,2);passed++;
- await sandbox.api.sendTonPayment();assert.equal(events.filter(e=>e==='send').length,1);passed++;
-}
-console.log(JSON.stringify({passed,quote_before_wallet:true,no_paid_from_wallet_broadcast:true,no_automatic_resend:true,refreshed_quote_requires_new_click:true,missing_recipient_blocks_transfer:true,real_wallet:false}));
+console.log(JSON.stringify({passed,one_initial_button:true,direct_wallet_handoff:true,one_check_per_five_seconds:true,duplicate_handoff_blocked:true,close_and_background_stop_polling:true,stale_paid_response_ignored:true,real_wallet:false}));
