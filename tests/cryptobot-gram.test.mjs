@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const code=html.split('// CryptoBot integration:')[1].split('async function startCryptoPayment()')[0];
 const id='abcd-efgh-ijkl-mnop',calls=[];
-const sandbox={detail:'GRAM',checkoutOrder:{id,amount:1,status:'pending'},AbortController,setTimeout,clearTimeout,console,sessionStorage:{setItem(){},removeItem(){}},fetch:async (_url,options)=>{
+const sandbox={window:{},detail:'GRAM',checkoutOrder:{id,amount:1,status:'pending'},AbortController,setTimeout,clearTimeout,console,sessionStorage:{setItem(){},removeItem(){}},fetch:async (_url,options)=>{
  const body=JSON.parse(options.body);calls.push(body);
  return Response.json({ok:true,result:body.action==='create_invoice'?{invoice_id:123,bot_invoice_url:'https://t.me/CryptoBot?start=test',amount:'1.00',ticket:'server-signed-ticket',status:'active'}:{status:'active'}});
 }};

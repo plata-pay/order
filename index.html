@@ -1511,9 +1511,10 @@
 
 
 <script src="/order/vendor/qrcode-generator-1.4.4.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
-<script src="/order/assets/evm-payment.js?v=20261017-recovery14"></script>
+<script src="/order/assets/payment-requests.js?v=20261017-check17"></script>
+<script src="/order/assets/evm-payment.js?v=20261017-check17"></script>
 <script src="/order/assets/tonconnect.js?v=20261017-keeper11"></script>
-<script src="/order/assets/gram-payment.js?v=20261017-recovery14"></script>
+<script src="/order/assets/gram-payment.js?v=20261017-check17"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1764,6 +1765,31 @@ function showPaymentSheet() {
   $('#btn-check').hidden = false;
   openSheet('action-sheet');
 }
+/* PAYMENT CHECK CYCLE START */
+function clearPaymentCheckButtons() {
+ for (const [id,label] of [['btn-check','Проверить'],['btn-check-transfer','Проверить'],['btn-quick-check','Проверить перевод']]) {
+  const button = $('#'+id); button.disabled = false; button.removeAttribute('aria-busy'); button.removeAttribute('aria-label'); button.textContent = label;
+ }
+}
+function cancelPaymentRequests() {
+ window.PlataPaymentRequests.cancel();
+ tonBusy = false; evmBusy = false; cryptoRequestBusy = false;
+ clearPaymentCheckButtons();
+ $('#btn-go').disabled = false;
+}
+window.addEventListener('pagehide',cancelPaymentRequests);
+async function runPaymentCheck(task,ids) {
+ const requests = window.PlataPaymentRequests;
+ if (requests.busy) return null;
+ const token = requests.capture();
+ for (const id of ids) {
+  const control = $('#'+id); control.disabled = true; control.setAttribute('aria-busy','true'); control.setAttribute('aria-label','Проверяем оплату');
+  control.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+ }
+ try { return await requests.runChecks(task); }
+ finally { if (requests.active(token)) clearPaymentCheckButtons(); }
+}
+/* PAYMENT CHECK CYCLE END */
 // Native GRAM payments: server-owned quote, official TON Connect, verified receipt only.
 let tonAccount = null, tonQuote = null, tonBusy = false, tonSent = false, tonPrepared = null;
 function showTonPaymentSheet() {
@@ -1839,69 +1865,49 @@ function tonPaid() {
   showSuccess();
 }
 async function checkTonPayment(manual = true) {
-  if (tonBusy || selected !== 'keeper' || phase !== 'waiting' || !checkoutOrder) return;
-  const orderId = checkoutOrder.id;
-  tonBusy = true;
-  const button = $('#btn-check');
-  button.disabled = true;
-  button.setAttribute('aria-busy', 'true');
-  button.setAttribute('aria-label', 'Проверяем оплату');
-  button.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
-  $('#btn-go').disabled = true;
-  const started = Date.now();
-  const waitUntil = offset => new Promise(resolve => setTimeout(resolve, Math.max(0, started + offset - Date.now())));
-  let status = 'pending', failure = null;
-  try {
-    for (const offset of [0, 2500]) {
-      await waitUntil(offset);
-      if (phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 2200);
-      try {
-        const result = await window.PlataGramPayment.serverStatus(orderId, {signal:controller.signal});
-        if (result === 'paid' || status !== 'paid') status = result;
-        failure = null;
-      } catch (error) { failure = error; }
-      finally { clearTimeout(timer); }
-    }
-    await waitUntil(5000);
-    if (phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
-    if (status === 'paid') { tonPaid(); return; }
-    if (manual) notice(failure ? failure.message : status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена', true);
-  } finally {
-    tonBusy = false;
-    button.removeAttribute('aria-busy');
-    button.removeAttribute('aria-label');
-    button.textContent = 'Проверить';
-    if (phase === 'waiting') showTonPaymentSheet();
-  }
+ if (tonBusy || window.PlataPaymentRequests.busy || selected !== 'keeper' || phase !== 'waiting' || !checkoutOrder) return;
+ const orderId = checkoutOrder.id, scope = window.PlataPaymentRequests.capture();
+ tonBusy = true; stopTonPolling();
+ try {
+  const outcome = await runPaymentCheck(async signal => ({status:await window.PlataGramPayment.serverStatus(orderId,{signal})}),['btn-check']);
+  if (!outcome || !window.PlataPaymentRequests.active(scope) || phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
+  if (outcome.result?.status === 'paid') { tonPaid(); return; }
+  if (manual) notice(outcome.error?.message || (outcome.result?.status === 'expired' && !tonSent ? 'Срок действия заказа истёк' : 'Оплата пока не подтверждена'),true);
+ } finally {
+  if (window.PlataPaymentRequests.active(scope)) { tonBusy = false; if (tonWaiting) startTonPolling(); }
+ }
 }
 async function startTonPayment() {
   if (tonBusy || !checkoutOrder || checkoutOrder.status !== 'pending' || phase !== 'idle') return;
   if (!window.PlataGramPayment) return notice('Обновите страницу для подключения оплаты',true);
+  const scope = window.PlataPaymentRequests?.begin();
   clearFlow(); sheetIds.forEach(closeSheet); phase = 'loading'; tonBusy = true; tonPrepared = null;
   openSheet('loading-sheet');
   try {
     const saved = window.PlataGramPayment.restore(checkoutOrder.id);
     tonSent = !!saved;
     tonQuote = saved?.quote.valid_until > Date.now()/1000+20 ? saved.quote : await window.PlataGramPayment.quote(checkoutOrder.id);
+    if (window.PlataPaymentRequests?.active(scope) === false) return;
     if (tonQuote.status === 'paid') { tonPaid(); return; }
     tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
-    if (selected !== 'keeper' || checkoutOrder.status !== 'pending') return;
+    if (window.PlataPaymentRequests?.active(scope) === false || selected !== 'keeper' || checkoutOrder.status !== 'pending') return;
     tonQuote = tonPrepared.quote;
     phase = 'waiting';
-  } catch(error) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод GRAM',true); }
-  finally { closeSheet('loading-sheet'); tonBusy = false; }
-  if (phase === 'waiting') await sendTonPayment();
+  } catch(error) { if (window.PlataPaymentRequests?.active(scope) !== false) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод GRAM',true); } }
+  finally { if (window.PlataPaymentRequests?.active(scope) !== false) { closeSheet('loading-sheet'); tonBusy = false; } }
+  if (window.PlataPaymentRequests?.active(scope) !== false && phase === 'waiting') await sendTonPayment();
 }
 async function sendTonPayment() {
   if (tonBusy || tonWaiting || phase !== 'waiting' || !tonQuote) return;
+  const scope = window.PlataPaymentRequests?.capture();
   tonBusy = true; $('#btn-go').disabled = true;
   try {
     if (!tonPrepared || tonQuote.valid_until <= Date.now()/1000+15) {
       tonQuote = await window.PlataGramPayment.quote(checkoutOrder.id);
+      if (window.PlataPaymentRequests?.active(scope) === false) return;
       if (tonQuote.status === 'paid') { tonPaid(); return; }
       tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
+      if (window.PlataPaymentRequests?.active(scope) === false) return;
       tonQuote = tonPrepared.quote;
       notice('Параметры обновлены. Нажмите «Перейти к оплате».',false);
       return;
@@ -1912,10 +1918,10 @@ async function sendTonPayment() {
     window.PlataGramPayment.save(checkoutOrder.id,{sent:true,quote:tonQuote});
     const handoffVersion = tonPollVersion, orderId = checkoutOrder.id, quoteId = tonQuote.quote_id;
     if (typeof requestAnimationFrame === 'function') await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-    if (!tonWaiting || phase !== 'waiting' || handoffVersion !== tonPollVersion || checkoutOrder?.id !== orderId) return;
+    if (window.PlataPaymentRequests?.active(scope) === false || !tonWaiting || phase !== 'waiting' || handoffVersion !== tonPollVersion || checkoutOrder?.id !== orderId) return;
     window.PlataGramPayment.open(orderId,quoteId);
-  } catch(error) { notice(error.message || 'Не удалось открыть перевод в кошельке. Нажмите «Повторить».',true); }
-  finally { tonBusy = false; if (phase === 'waiting' && !tonWaiting) showTonPaymentSheet(); }
+  } catch(error) { if (window.PlataPaymentRequests?.active(scope) !== false) notice(error.message || 'Не удалось открыть перевод в кошельке. Нажмите «Повторить».',true); }
+  finally { if (window.PlataPaymentRequests?.active(scope) !== false) { tonBusy = false; if (phase === 'waiting' && !tonWaiting) showTonPaymentSheet(); } }
 }
 window.PlataTonConnect?.onChange((account, error) => {
   tonAccount = account;
@@ -1945,45 +1951,45 @@ function showEvmTransfer() {
 }
 async function startGramTransfer() {
   if (evmBusy || phase !== 'idle' || !checkoutOrder) return;
-  const orderId = checkoutOrder.id;
+  const orderId = checkoutOrder.id, scope = window.PlataPaymentRequests?.begin();
   evmBusy = true; clearFlow(); phase = 'loading'; openSheet('loading-sheet');
   try {
     const saved = window.PlataGramPayment.restore(orderId);
     const q = saved && saved.quote.valid_until > Date.now()/1000+20 ? saved.quote : await window.PlataGramPayment.quote(orderId);
-    if (checkoutOrder?.id !== orderId || selected !== 'gram') return;
+    if (window.PlataPaymentRequests?.active(scope) === false || checkoutOrder?.id !== orderId || selected !== 'gram') return;
     if (q.status === 'paid') { checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
     window.PlataGramPayment.save(orderId,{sent:true,quote:q});
     evmQuote = {id:orderId,currency:'GRAM',recipient:q.recipient,amount:q.gram_amount,comment:q.comment,valid_until:q.valid_until,payment_uri:'ton://transfer/'+q.recipient+'?'+new URLSearchParams({amount:q.nano_amount,text:q.comment,exp:String(q.valid_until)})};
     closeSheet('loading-sheet'); phase = 'waiting'; showEvmTransfer();
-  } catch(error) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод GRAM',true); }
-  finally { evmBusy = false; closeSheet('loading-sheet'); if (phase === 'waiting') $('#btn-check-transfer').disabled = false; }
+  } catch(error) { if (window.PlataPaymentRequests?.active(scope) !== false) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод GRAM',true); } }
+  finally { if (window.PlataPaymentRequests?.active(scope) !== false) { evmBusy = false; closeSheet('loading-sheet'); if (phase === 'waiting') $('#btn-check-transfer').disabled = false; } }
 }
 async function startEvmPayment() {
   if (evmBusy || phase !== 'idle' || !checkoutOrder) return;
   const currency = selected === 'ethereum' ? 'ETH' : 'BNB';
-  const orderId = checkoutOrder.id;
+  const orderId = checkoutOrder.id, scope = window.PlataPaymentRequests?.begin();
   evmBusy = true; clearFlow(); phase = 'loading'; openSheet('loading-sheet');
   try {
     const result = await window.PlataEvmPayment.quote(orderId, currency);
-    if (checkoutOrder?.id !== orderId || !['ethereum','bnb'].includes(selected) || (selected === 'ethereum' ? 'ETH' : 'BNB') !== currency) return;
+    if (window.PlataPaymentRequests?.active(scope) === false || checkoutOrder?.id !== orderId || !['ethereum','bnb'].includes(selected) || (selected === 'ethereum' ? 'ETH' : 'BNB') !== currency) return;
     if (result.status === 'paid') { checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
     evmQuote = result.quote;
     $('#evm-tx-hash').value = '';
     closeSheet('loading-sheet'); phase = 'waiting'; showEvmTransfer();
-  } catch (error) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод', true); }
-  finally { evmBusy = false; closeSheet('loading-sheet'); if (phase === 'waiting') $('#btn-check-transfer').disabled = false; }
+  } catch (error) { if (window.PlataPaymentRequests?.active(scope) !== false) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод', true); } }
+  finally { if (window.PlataPaymentRequests?.active(scope) !== false) { evmBusy = false; closeSheet('loading-sheet'); if (phase === 'waiting') $('#btn-check-transfer').disabled = false; } }
 }
 async function checkEvmPayment(txHash = '') {
-  if (evmBusy || phase !== 'waiting' || !evmQuote) return;
-  evmBusy = true;
-  const button = $('#btn-check-transfer'), quickButton = $('#btn-quick-check');
-  for (const control of [button,quickButton]) { control.disabled = true; control.setAttribute('aria-busy','true'); control.innerHTML = '<span class="dots-loader button-dots" aria-hidden="true"><i></i><i></i><i></i></span>'; }
-  try {
-    const result = evmQuote.currency === 'GRAM' ? {status:await window.PlataGramPayment.serverStatus(evmQuote.id)} : await window.PlataEvmPayment.check(evmQuote.id,evmQuote.currency,txHash);
-    if (result.status === 'paid') { if (evmQuote.currency === 'GRAM') window.PlataGramPayment.save(evmQuote.id,null); checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
-    notice(result.status === 'confirming' ? 'Перевод найден. Ожидаем окончательного подтверждения сети.' : result.status === 'expired' ? 'Срок оплаты истёк' : result.scanning ? 'Платёж пока не найден. Поиск продолжается при следующей проверке; хеш перевода ускорит поиск.' : 'Платёж пока не найден', true, false, 4000);
-  } catch (error) { notice(error.message || 'Не удалось проверить перевод',true); }
-  finally { evmBusy = false; for (const control of [button,quickButton]) { control.disabled = false; control.removeAttribute('aria-busy'); } button.textContent = 'Проверить'; quickButton.textContent = 'Проверить перевод'; }
+ if (evmBusy || window.PlataPaymentRequests.busy || phase !== 'waiting' || !evmQuote) return;
+ const quote = evmQuote, scope = window.PlataPaymentRequests.capture();
+ evmBusy = true;
+ try {
+  const outcome = await runPaymentCheck(signal => quote.currency === 'GRAM' ? window.PlataGramPayment.serverStatus(quote.id,{signal}).then(status=>({status})) : window.PlataEvmPayment.check(quote.id,quote.currency,txHash,{signal}),['btn-check-transfer','btn-quick-check']);
+  if (!outcome || !window.PlataPaymentRequests.active(scope) || phase !== 'waiting' || checkoutOrder?.id !== quote.id) return;
+  const result = outcome.result;
+  if (result?.status === 'paid') { if (quote.currency === 'GRAM') window.PlataGramPayment.save(quote.id,null); checkoutOrder.status = 'paid'; phase = 'verifying'; showSuccess(); return; }
+  notice(outcome.error?.message || (result?.status === 'confirming' ? 'Перевод найден. Ожидаем окончательного подтверждения сети.' : result?.status === 'expired' ? 'Срок оплаты истёк' : result?.scanning ? 'Платёж пока не найден. Поиск продолжается при следующей проверке; хеш перевода ускорит поиск.' : 'Платёж пока не найден'),true,false,4000);
+ } finally { if (window.PlataPaymentRequests.active(scope)) evmBusy = false; }
 }
 function closeQuickCheck() { closeSheet('quick-check-sheet'); if (phase === 'waiting') $('#transfer-hash-entry').focus(); }
 $('#transfer-hash-entry').addEventListener('click',()=>{ if (phase === 'waiting' && evmQuote && evmQuote.currency !== 'GRAM' && !evmBusy) openSheet('quick-check-sheet'); });
@@ -2011,6 +2017,7 @@ let lastCreateClick = 0;
 let lastCheckClick = 0;
 async function cryptoFetch(url, options, timeout = 15000) {
   const controller = new AbortController();
+  const release = window.PlataPaymentRequests?.link(controller,options.signal);
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
     const response = await fetch(url, {...options, signal:controller.signal});
@@ -2020,19 +2027,19 @@ async function cryptoFetch(url, options, timeout = 15000) {
       const error = typeof body?.error === 'string' ? body.error : body?.message;
       if (response.status === 429) {
         const seconds = Math.max(1, Number(body?.retry_after) || Number(response.headers.get('Retry-After')) || 60);
-        throw new Error('Лимит запросов исчерпан. Повторите через ' + seconds + ' сек.');
+        throw Object.assign(new Error('Лимит запросов исчерпан. Повторите через ' + seconds + ' сек.'),{status:429,retryAfter:seconds});
       }
-      throw new Error(error || 'Ошибка сервера (' + response.status + ')');
+      throw Object.assign(new Error(error || 'Ошибка сервера (' + response.status + ')'),{status:response.status});
     }
     return body;
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Сервер не ответил вовремя');
+    if (error.name === 'AbortError') throw error;
     throw error;
-  } finally { clearTimeout(timer); }
+  } finally { clearTimeout(timer); release?.(); }
 }
-async function cryptoWorker(action, data) {
+async function cryptoWorker(action, data, signal) {
   const response = await cryptoFetch(CRYPTO_WORKER_URL, {
-    method:'POST', headers:{'Content-Type':'application/json'},
+    method:'POST', headers:{'Content-Type':'application/json'},signal,
     body:JSON.stringify({provider:'cryptobot',action,data})
   });
   return response.result;
@@ -2069,12 +2076,14 @@ async function cryptoCreateInvoice() {
   if (!Number.isSafeInteger(id) || id <= 0 || !url || !/^https:\/\//i.test(url) || !response.ticket) throw new Error('CryptoBot не вернул корректный счёт');
   return {id,url,ticker,order,amount:response.amount || amount,ticket:response.ticket,status:response.status || 'active'};
 }
-async function cryptoCheckInvoice() {
+async function cryptoCheckInvoice(signal) {
   if (!cryptoInvoice) throw new Error('Счёт ещё не создан');
-  const result = await cryptoWorker('check_invoice',{invoice_id:cryptoInvoice.id,order_id:cryptoInvoice.order,asset:cryptoApiAsset(cryptoInvoice.ticker),amount:cryptoInvoice.amount,ticket:cryptoInvoice.ticket});
+  const invoice = cryptoInvoice, scope = window.PlataPaymentRequests?.capture();
+  const result = await cryptoWorker('check_invoice',{invoice_id:invoice.id,order_id:invoice.order,asset:cryptoApiAsset(invoice.ticker),amount:invoice.amount,ticket:invoice.ticket},signal);
+  if (signal?.aborted || window.PlataPaymentRequests?.active(scope) === false) throw Object.assign(new Error('Операция отменена'),{name:'AbortError'});
   const status = String(result.status || '').toLowerCase();
   if (!['paid','active','expired'].includes(status)) throw new Error('Неизвестный статус платежа');
-  cryptoInvoice.status = status;
+  invoice.status = status;
   saveCryptoInvoice();
   return status;
 }
@@ -2093,11 +2102,13 @@ async function startCryptoPayment() {
   const existing = cryptoInvoice?.order === order && cryptoInvoice?.ticker === detail ? cryptoInvoice : restoreCryptoInvoice();
   if (existing && existing.order === order && existing.ticker === detail &&
       existing.amount === amount && existing.status === 'active') {
+    window.PlataPaymentRequests?.begin();
     cryptoInvoice = existing;
     phase = 'waiting';
     showPaymentSheet();
     return;
   }
+  const scope = window.PlataPaymentRequests?.begin();
   const attempt = ++cryptoAttempt;
   cryptoRequestBusy = true;
   clearFlow();
@@ -2106,21 +2117,21 @@ async function startCryptoPayment() {
   const started = Date.now();
   try {
     const inv = await cryptoCreateInvoice();
-    if (attempt !== cryptoAttempt) return;
+    if (attempt !== cryptoAttempt || window.PlataPaymentRequests?.active(scope) === false) return;
     cryptoInvoice = inv;
     saveCryptoInvoice();
     await new Promise(resolve => setTimeout(resolve,Math.max(0,2000-(Date.now()-started))));
-    if (attempt !== cryptoAttempt) return;
+    if (attempt !== cryptoAttempt || window.PlataPaymentRequests?.active(scope) === false) return;
     closeSheet('loading-sheet');
     phase = 'waiting';
     showPaymentSheet();
   } catch (error) {
-    if (attempt !== cryptoAttempt) return;
+    if (attempt !== cryptoAttempt || window.PlataPaymentRequests?.active(scope) === false) return;
     closeSheet('loading-sheet');
     phase = 'idle';
     // Keep any previously created invoice for recovery after network failure.
     cryptoError(error);
-  } finally { cryptoRequestBusy = false; }
+  } finally { if (attempt === cryptoAttempt && window.PlataPaymentRequests?.active(scope) !== false) cryptoRequestBusy = false; }
 }
 function startPayment() {
   if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
@@ -2165,6 +2176,7 @@ $('#payment-form').addEventListener('submit', event => {
 });
 function showSuccess() {
   if (phase !== 'verifying') return;
+  cancelPaymentRequests();
   tonWaiting = false; stopTonPolling();
   clearFlow();
   phase = 'success';
@@ -2182,6 +2194,7 @@ function showSuccess() {
   clearCheckoutState();
 }
 function reset() {
+  cancelPaymentRequests();
   tonWaiting = false; stopTonPolling();
   if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
   cryptoAttempt++;
@@ -2202,39 +2215,17 @@ function reset() {
   persistCheckoutState();
 }
 async function beginVerification() {
-  if (selected === 'keeper') return checkTonPayment(true);
-  if (selected === 'ethereum' || selected === 'bnb' || selected === 'gram') return checkEvmPayment();
-  if (phase !== 'waiting' || cryptoRequestBusy) return;
-  const now = Date.now();
-  if (now - lastCheckClick < CHECK_COOLDOWN_MS) return;
-  lastCheckClick = now;
-  if (selected !== 'cryptobot') {
-    notice('Проверка этого способа пока не подключена',true);
-    return;
-  }
-  cryptoRequestBusy = true;
-  phase = 'verifying';
-  $('#btn-check').disabled = true;
-  $('#btn-check-transfer').disabled = true;
-  const started = Date.now();
-  notice('Проверяем оплату',false,true,1500);
-  try {
-    const status = await cryptoCheckInvoice();
-    await new Promise(resolve=>setTimeout(resolve,Math.max(0,1500-(Date.now()-started))));
-    if (phase !== 'verifying') return;
-    if (status === 'paid') { checkoutOrder = {...checkoutOrder, status:'paid'}; showSuccess(); }
-    else {
-      phase = 'waiting';
-      notice(status === 'expired' ? 'Срок действия счёта истёк' : 'Оплата пока не поступила',true);
-    }
-  } catch (error) {
-    if (phase === 'verifying') phase = 'waiting';
-    cryptoError(error);
-  } finally {
-    cryptoRequestBusy = false;
-    $('#btn-check').disabled = false;
-    $('#btn-check-transfer').disabled = false;
-  }
+ if (selected === 'keeper') return checkTonPayment(true);
+ if (selected === 'ethereum' || selected === 'bnb' || selected === 'gram') return checkEvmPayment();
+ if (phase !== 'waiting' || selected !== 'cryptobot' || cryptoRequestBusy || window.PlataPaymentRequests.busy) return;
+ const orderId = checkoutOrder?.id, scope = window.PlataPaymentRequests.capture();
+ cryptoRequestBusy = true;
+ try {
+  const outcome = await runPaymentCheck(async signal=>({status:await cryptoCheckInvoice(signal)}),['btn-check']);
+  if (!outcome || !window.PlataPaymentRequests.active(scope) || phase !== 'waiting' || checkoutOrder?.id !== orderId) return;
+  if (outcome.result?.status === 'paid') { checkoutOrder = {...checkoutOrder,status:'paid'}; phase = 'verifying'; showSuccess(); }
+  else notice(outcome.error?.message || (outcome.result?.status === 'expired' ? 'Срок действия счёта истёк' : 'Оплата пока не поступила'),true);
+ } finally { if (window.PlataPaymentRequests.active(scope)) cryptoRequestBusy = false; }
 }
 $('#btn-go').addEventListener('click', () => {
   if (phase !== 'waiting') return;
@@ -2252,6 +2243,7 @@ $('#btn-check-transfer').addEventListener('click', beginVerification);
 function openConfirmation(origin) {
   if (phase !== 'waiting') return;
   previousSheet = origin;
+  cancelPaymentRequests();
   if (origin === 'wallet-wait-sheet') stopTonPolling();
   closeSheet(origin);
   openSheet('confirm-sheet');
@@ -2283,6 +2275,7 @@ function restoreFromConfirmation() {
   const origin = previousSheet;
   previousSheet = null;
   if (origin && phase === 'waiting') {
+    window.PlataPaymentRequests.begin();
     openSheet(origin);
     if (origin === 'wallet-wait-sheet') startTonPolling();
   }

@@ -16,6 +16,7 @@
  }
  async function request(url,body,signal){
   const control=new AbortController(),timeout=setTimeout(()=>control.abort(),12000);
+  const release=window.PlataPaymentRequests?.link(control,signal);
   const abort=()=>control.abort();
   if(signal?.aborted)control.abort();else signal?.addEventListener('abort',abort,{once:true});
   try{
@@ -24,7 +25,7 @@
    let result;try{result=JSON.parse(text);}catch{throw new Error('Сервис временно недоступен');}
    if(!response.ok){const error=new Error(errors[result?.error]||(response.status===429?'Лимит запросов. Подождите немного.':'Сервис временно недоступен. Повторите попытку.'));error.status=response.status;throw error;}
    return result;
-  }catch(error){if(error.name==='AbortError')throw new Error('Сервис не ответил вовремя');throw error;}finally{clearTimeout(timeout);signal?.removeEventListener('abort',abort);}
+  }catch(error){if(error.name==='AbortError')throw new Error('Сервис не ответил вовремя');throw error;}finally{clearTimeout(timeout);signal?.removeEventListener('abort',abort);release?.();}
  }
  function receipt(tx,q){try{
   const msg=tx.in_msg,d=tx.description;

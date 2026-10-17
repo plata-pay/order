@@ -26,7 +26,7 @@ let passed=0;
 // Real confirmation handlers must pause polling, preserve the payment on return and only reset after confirmation.
 {
  const nodes=new Map(),events=[];const node=k=>{if(!nodes.has(k))nodes.set(k,{open:false,addEventListener(type,fn){this[type]=fn;},getBoundingClientRect(){return {left:10,right:100,top:10,bottom:100};}});return nodes.get(k);};
- const e={$:node,phase:'waiting',previousSheet:null,stopTonPolling(){events.push('stop');},startTonPolling(){events.push('resume');},openSheet:k=>{node('#'+k).open=true;events.push('open:'+k);},closeSheet:k=>node('#'+k).open=false,reset(){events.push('reset');e.phase='idle';},notice(){}};
+ const e={window:{PlataPaymentRequests:{begin(){}}},cancelPaymentRequests(){events.push('abort-requests');},$:node,phase:'waiting',previousSheet:null,stopTonPolling(){events.push('stop');},startTonPolling(){events.push('resume');},openSheet:k=>{node('#'+k).open=true;events.push('open:'+k);},closeSheet:k=>node('#'+k).open=false,reset(){events.push('reset');e.phase='idle';},notice(){}};
  const code=html.slice(html.indexOf('function openConfirmation(origin)'),html.indexOf("$('#back').addEventListener('click', reset)"));
  vm.createContext(e);vm.runInContext(code,e);const listener=html.split("$('#wallet-wait-sheet').addEventListener('click',")[1].split('\n')[0];vm.runInContext("$('#wallet-wait-sheet').addEventListener('click',"+listener,e);
  node('#wallet-wait-sheet').click({target:node('#wallet-wait-sheet'),clientX:0,clientY:0});assert.equal(node('#confirm-sheet').open,true);assert.ok(events.includes('stop'));assert.ok(!events.includes('reset'));node('#btn-back-op').click();assert.equal(node('#wallet-wait-sheet').open,true);assert.ok(events.includes('resume'));passed++;
