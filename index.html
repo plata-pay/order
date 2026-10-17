@@ -1785,7 +1785,7 @@ function stopTonPolling() {
 }
 function startTonPolling() {
   stopTonPolling();
-  if (!tonWaiting || (typeof document !== 'undefined' && document.hidden)) return;
+  if (!tonWaiting || !$('#wallet-wait-sheet').open || (typeof document !== 'undefined' && document.hidden)) return;
   const version = tonPollVersion, orderId = checkoutOrder?.id;
   const active = () => tonWaiting && version === tonPollVersion && phase === 'waiting' && selected === 'keeper' && checkoutOrder?.id === orderId;
   async function tick() {
