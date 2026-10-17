@@ -129,12 +129,29 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 .action-sheet:has(#btn-check[hidden]) .sheet-body { padding:20px; }
 .action-sheet:has(#btn-check[hidden]) .action-buttons { display:flex; width:100%; }
 .action-sheet:has(#btn-check[hidden]) #btn-go { width:100%; }
-.wallet-wait-sheet { height:auto; }
-.wallet-wait-sheet .sheet-body { position:relative; min-height:310px; justify-content:center; gap:14px; padding:38px 24px; }
-.wallet-wait-close { position:absolute; right:18px; top:18px; }
-.wallet-wait-spinner { position:relative; display:grid; place-items:center; width:88px; height:88px; margin:4px 0 8px; border-radius:50%; background:radial-gradient(circle,#d9d1ff0a,#ffffff00 70%); }
-.wallet-wait-spinner span { position:absolute; inset:0; border:2px solid #d3c9ff18; border-top-color:#e5dfff; border-right-color:#b7a5ec; border-radius:50%; animation:spin 1.2s linear infinite; filter:drop-shadow(0 0 7px #c4b4ff28); }
-.wallet-wait-spinner i { width:54px; height:54px; border:1px solid #ffffff12; border-bottom-color:#a9a0c995; border-radius:50%; animation:spin 2.1s linear infinite reverse; }
-.wallet-wait-sheet h2 { margin:0; font-size:24px; letter-spacing:-.6px; color:#f3f1fa; }
-.wallet-wait-sheet p { margin:0; color:#a6a2b1; font-size:13px; text-align:center; }
-@media(prefers-reduced-motion:reduce) { .wallet-wait-spinner span,.wallet-wait-spinner i { animation:none; } }
+/* Keeper handoff follows the reference geometry at a 392px viewport. */
+.wallet-wait-sheet { inset:auto 0 0; width:100%; max-width:440px; margin:0 auto; height:280px; max-height:94dvh; padding:0; border:0; border-radius:24px 24px 0 0; background:#111113; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; color:#dedee2; }
+.wallet-wait-sheet::backdrop { background:#0006; backdrop-filter:none; -webkit-backdrop-filter:none; }
+.wallet-wait-sheet .sheet-body { display:flex; align-items:stretch; height:100%; padding:16px 16px 34px; gap:0; overflow:hidden; }
+.keeper-header { display:grid; grid-template-columns:32px 1fr 32px; align-items:center; gap:8px; flex:none; }
+.wallet-wait-sheet .keeper-header h2 { margin:0; color:#dedee2; font:600 20px/32px -apple-system,BlinkMacSystemFont,system-ui,sans-serif; letter-spacing:-.4px; text-align:center; }
+.keeper-round { display:grid; place-items:center; width:32px; height:32px; padding:0; border:0; border-radius:50%; background:#242426; color:#8d8d93; cursor:pointer; }
+.keeper-round svg { width:18px; height:18px; }
+.keeper-pending { display:flex; flex-direction:column; align-items:center; margin-top:54px; }
+.keeper-spinner { display:block; width:44px; height:44px; color:#4d4d52; animation:spin 1s linear infinite; }
+.wallet-wait-sheet .keeper-pending p { margin:20px 0 18px; color:#79797f; font:400 16px/22px -apple-system,BlinkMacSystemFont,system-ui,sans-serif; letter-spacing:0; text-align:center; }
+.keeper-actions { display:flex; justify-content:center; align-items:center; gap:8px; width:100%; }
+.keeper-actions button { display:flex; justify-content:center; align-items:center; gap:6px; height:36px; min-width:0; padding:0 13px; border:0; border-radius:999px; background:#2c2c2e; color:#dedee2; font:600 14px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif; white-space:nowrap; cursor:pointer; }
+.keeper-actions button:first-child { min-width:122px; }
+.keeper-actions button:last-child { min-width:162px; }
+.keeper-actions svg { width:18px; height:18px; flex:none; }
+.keeper-actions button:active,.keeper-round:active { background:#38383b; }
+.wallet-wait-sheet.keeper-qr-mode { height:320px; }
+.keeper-qr { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding-top:20px; }
+.keeper-qr img { width:194px; height:194px; border:8px solid #fff; border-radius:14px; background:#fff; image-rendering:pixelated; }
+.paid-screen { padding:0 20px max(20px,env(safe-area-inset-bottom)); }
+.paid-success-card { min-height:0; padding:max(24px,env(safe-area-inset-top)) 0 24px; }
+.paid-screen #success-reset { display:flex; justify-content:center; align-items:center; width:100%; max-width:420px; min-height:52px; margin:0 auto; padding:0 24px; border:0; border-radius:999px; background:#000; color:#fff; font:600 15px/1.2 -apple-system,BlinkMacSystemFont,system-ui,sans-serif; }
+@media(max-width:350px) { .keeper-actions { gap:7px; } .keeper-actions button { min-width:0!important; padding:0 11px; font-size:13px; } }
+@media(max-height:360px) { .wallet-wait-sheet { height:260px; } .keeper-pending { margin-top:38px; } }
+@media(prefers-reduced-motion:reduce) { .keeper-spinner { animation:none; } }
