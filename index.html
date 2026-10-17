@@ -1886,12 +1886,13 @@ async function startTonPayment() {
   try {
     const saved = window.PlataGramPayment.restore(checkoutOrder.id);
     tonSent = !!saved;
-    tonQuote = saved?.quote.valid_until > Date.now()/1000+20 ? saved.quote : await window.PlataGramPayment.quote(checkoutOrder.id);
+    const quote = saved?.quote.valid_until > Date.now()/1000+20 ? saved.quote : await window.PlataGramPayment.quote(checkoutOrder.id);
     if (window.PlataPaymentRequests?.active(scope) === false) return;
+    tonQuote = quote;
     if (tonQuote.status === 'paid') { tonPaid(); return; }
-    tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
+    const prepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
     if (window.PlataPaymentRequests?.active(scope) === false || selected !== 'keeper' || checkoutOrder.status !== 'pending') return;
-    tonQuote = tonPrepared.quote;
+    tonPrepared = prepared; tonQuote = prepared.quote;
     phase = 'waiting';
   } catch(error) { if (window.PlataPaymentRequests?.active(scope) !== false) { phase = 'idle'; notice(error.message || 'Не удалось подготовить перевод GRAM',true); } }
   finally { if (window.PlataPaymentRequests?.active(scope) !== false) { closeSheet('loading-sheet'); tonBusy = false; } }
@@ -1903,12 +1904,13 @@ async function sendTonPayment() {
   tonBusy = true; $('#btn-go').disabled = true;
   try {
     if (!tonPrepared || tonQuote.valid_until <= Date.now()/1000+15) {
-      tonQuote = await window.PlataGramPayment.quote(checkoutOrder.id);
+      const quote = await window.PlataGramPayment.quote(checkoutOrder.id);
       if (window.PlataPaymentRequests?.active(scope) === false) return;
+      tonQuote = quote;
       if (tonQuote.status === 'paid') { tonPaid(); return; }
-      tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
+      const prepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
       if (window.PlataPaymentRequests?.active(scope) === false) return;
-      tonQuote = tonPrepared.quote;
+      tonPrepared = prepared; tonQuote = prepared.quote;
       notice('Параметры обновлены. Нажмите «Перейти к оплате».',false);
       return;
     }

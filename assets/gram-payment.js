@@ -39,7 +39,7 @@
  }
 
  window.PlataGramPayment=Object.freeze({
-  async quote(id){if(!ID.test(id))throw new Error('Некорректный ID');const result=await request(MAIN+'/quote',{id});if(result.status==='paid')return result;const q=quote(result.quote,id);quotes.set(id,q);candidates.delete(id);return q;},
+  async quote(id){if(!ID.test(id))throw new Error('Некорректный ID');const scope=window.PlataPaymentRequests?.capture(),result=await request(MAIN+'/quote',{id});if(window.PlataPaymentRequests?.active(scope)===false)throw Object.assign(new Error('Операция отменена'),{name:'AbortError'});if(result.status==='paid')return result;const q=quote(result.quote,id);quotes.set(id,q);candidates.delete(id);return q;},
   async prepare(id,quoteId){const q=quotes.get(id);if(!q||q.quote_id!==quoteId||q.valid_until<=Date.now()/1000+15)throw Object.assign(new Error('Курс истёк'),{status:409});return {quote:q,url:paymentUrl(q)};},
   open(id,quoteId){const q=quotes.get(id);if(!q||q.quote_id!==quoteId||q.valid_until<=Date.now()/1000)throw new Error('Обновите параметры платежа');window.location.assign(paymentUrl(q));},
   async status(id,{signal}={}){
