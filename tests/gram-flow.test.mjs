@@ -44,3 +44,11 @@ let passed=0;
  const t=setup(),frames=[];t.e.requestAnimationFrame=fn=>frames.push(fn);const opening=t.e.api.startTonPayment();await t.flush();assert.equal(frames.length,1);frames.shift()();t.e.api.closeTonWaiting();frames.shift()();await opening;assert.equal(t.events.filter(x=>x==='wallet').length,0);passed++;
 }
 console.log(JSON.stringify({passed,automatic_handoff_after_quote:true,direct_wallet_handoff:true,one_check_per_five_seconds:true,duplicate_handoff_blocked:true,close_and_background_stop_polling:true,stale_paid_response_ignored:true,real_wallet:false}));
+{
+ const t=setup(),q=await t.e.window.PlataGramPayment.quote();let resolve,generation=0,live=true;
+ t.e.window.PlataPaymentRequests={begin(){live=true;return ++generation;},capture:()=>generation,active:v=>live&&v===generation};
+ t.e.window.PlataGramPayment.quote=()=>new Promise(r=>resolve=r);
+ const pending=t.e.api.startTonPayment();await t.flush();live=false;t.e.api.closeTonWaiting();resolve(q);await pending;
+ assert.equal(t.e.phase,'idle');assert.ok(!t.events.includes('prepare'));assert.ok(!t.events.includes('wallet'));
+ console.log(JSON.stringify({cancelled_quote_cannot_reopen_keeper:true}));
+}
