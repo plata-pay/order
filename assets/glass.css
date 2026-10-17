@@ -138,7 +138,7 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 .keeper-round { display:grid; place-items:center; width:32px; height:32px; padding:0; border:0; border-radius:50%; background:#242426; color:#8d8d93; cursor:pointer; }
 .keeper-round svg { width:18px; height:18px; }
 .keeper-pending { display:flex; flex-direction:column; align-items:center; margin-top:54px; }
-.keeper-spinner { display:block; width:44px; height:44px; color:#4d4d52; animation:spin 1s linear infinite; }
+.keeper-spinner { display:block; width:44px; height:44px; color:#4d4d52; transform-origin:center; animation:loading-spin 1s linear infinite !important; }
 .wallet-wait-sheet .keeper-pending p { margin:20px 0 18px; color:#79797f; font:400 16px/22px -apple-system,BlinkMacSystemFont,system-ui,sans-serif; letter-spacing:0; text-align:center; }
 .keeper-actions { display:flex; justify-content:center; align-items:center; gap:8px; width:100%; }
 .keeper-actions button { display:flex; justify-content:center; align-items:center; gap:6px; height:36px; min-width:0; padding:0 13px; border:0; border-radius:999px; background:#2c2c2e; color:#dedee2; font:600 14px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif; white-space:nowrap; cursor:pointer; }
@@ -154,4 +154,3 @@ button[aria-busy=true] { opacity:1; cursor:wait; }
 .paid-screen #success-reset { display:flex; justify-content:center; align-items:center; width:100%; max-width:420px; min-height:52px; margin:0 auto; padding:0 24px; border:0; border-radius:999px; background:#000; color:#fff; font:600 15px/1.2 -apple-system,BlinkMacSystemFont,system-ui,sans-serif; }
 @media(max-width:350px) { .keeper-actions { gap:7px; } .keeper-actions button { min-width:0!important; padding:0 11px; font-size:13px; } }
 @media(max-height:360px) { .wallet-wait-sheet { height:260px; } .keeper-pending { margin-top:38px; } }
-@media(prefers-reduced-motion:reduce) { .keeper-spinner { animation:none; } }
