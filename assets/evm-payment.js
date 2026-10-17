@@ -7,12 +7,13 @@
   const value=await res.json();if(!res.ok)throw new Error(messages[value.error]||(res.status===429?'Лимит проверок. Повторите позже.':'Не удалось выполнить запрос. Повторите попытку.'));
   return value;
  }catch(e){if(e.name==='AbortError')throw new Error('Сеть не ответила вовремя. Повторите проверку.');throw e;}finally{clearTimeout(timer);}}
- window.PlataEvmPayment=Object.freeze({
-  async quote(id,currency){const result=await request('/api/quote',{id,currency});if(result.status==='paid')return result;const q=result.quote;
+ function validateQuote(q,id,currency){
    const chain=currency==='ETH'?1:currency==='BNB'?56:0;
    if(!q||q.id!==id||q.currency!==currency||q.chain_id!==chain||!/^0x[a-f0-9]{40}$/.test(q.recipient||'')||!(/^[1-9]\d{0,29}$/).test(q.wei||'')||!(/^\d+\.\d{18}$/).test(q.amount||'')||q.payment_uri!=='ethereum:'+q.recipient+'@'+chain+'?value='+q.wei||BigInt(q.amount.replace('.',''))!==BigInt(q.wei))throw new Error('Некорректные реквизиты платежа');
-   return result;
-  },
+ }
+ window.PlataEvmPayment=Object.freeze({
+  async quote(id,currency){const result=await request('/api/quote',{id,currency});if(result.status==='paid')return result;validateQuote(result.quote,id,currency);return result;},
+  restore(id,currency,value,rubles){try{validateQuote(value,id,currency);if(value.rub_amount!==rubles||!Number.isSafeInteger(value.valid_until)||value.valid_until<=Date.now()/1000)return null;return value;}catch{return null;}},
   check(id,currency,tx_hash=''){if(tx_hash&&!/^0x[a-f0-9]{64}$/i.test(tx_hash))return Promise.reject(new Error('Укажите корректный хеш транзакции'));return request('/api/check',{id,currency,...(tx_hash?{tx_hash}:{})});},
   qr(uri){
    let valid=/^ethereum:0x[a-f0-9]{40}@(1|56)\?value=[1-9]\d{0,29}$/.test(uri);

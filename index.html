@@ -1088,7 +1088,7 @@
 .legal-sheet,.legal-sub-sheet,.legal-sheet .sheet-body,.legal-sub-sheet .sheet-body,.legal-content,.legal-sub-text{scrollbar-width:none!important;-ms-overflow-style:none!important}
 .legal-sheet::-webkit-scrollbar,.legal-sub-sheet::-webkit-scrollbar,.legal-sheet .sheet-body::-webkit-scrollbar,.legal-sub-sheet .sheet-body::-webkit-scrollbar,.legal-content::-webkit-scrollbar,.legal-sub-text::-webkit-scrollbar{display:none!important;width:0!important}
 </style>
-<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-startup13"/>
+<link rel="stylesheet" href="/order/assets/glass.css?v=20261017-recovery14"/>
 <script src="/order/assets/vpn-panel.js?v=20261017-startup13" defer></script>
 </head>
 <body>
@@ -1511,9 +1511,9 @@
 
 
 <script src="/order/vendor/qrcode-generator-1.4.4.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
-<script src="/order/assets/evm-payment.js?v=20261016-audit5"></script>
+<script src="/order/assets/evm-payment.js?v=20261017-recovery14"></script>
 <script src="/order/assets/tonconnect.js?v=20261017-keeper11"></script>
-<script src="/order/assets/gram-payment.js?v=20261017-keeper11"></script>
+<script src="/order/assets/gram-payment.js?v=20261017-recovery14"></script>
 <script>(() => {
 'use strict';
 const $ = selector => document.querySelector(selector);
@@ -1521,7 +1521,7 @@ const $$ = selector => Array.from(document.querySelectorAll(selector));
 let checkoutOrder = null;
 
 const currencyOptions = {
-  cryptobot: [['BTC', 'Bitcoin'], ['ETH', 'Ethereum'], ['GRAM', 'Gram'], ['BNB', 'BNB']],
+  cryptobot: [['USDT', 'Tether'], ['BTC', 'Bitcoin'], ['ETH', 'Ethereum'], ['GRAM', 'Gram'], ['BNB', 'BNB']],
   keeper: [['GRAM', 'Gram']],
   trust: [['ETH', 'Ethereum'], ['BNB', 'BNB']]
 };
@@ -1619,6 +1619,7 @@ function renderDetail() {
       $('#selected-currency').value = id;
       renderDetail();
       closeMenu('detail');
+      persistCheckoutState();
     });
     $('#detail-options').append(option);
   }
@@ -1651,6 +1652,7 @@ function selectMethod(id) {
   $('#method-toggle').classList.remove('invalid');
   renderDetail();
   closeMenu('method');
+  persistCheckoutState();
 }
 
 $('#method-toggle').addEventListener('click', () => toggleMenu('method'));
@@ -1683,6 +1685,7 @@ function openSheet(id) {
   if (!sheet || sheet.open) return;
   sheet.classList.remove('closing');
   sheet.showModal();
+  if (['action-sheet','transfer-sheet','wallet-wait-sheet','confirm-sheet'].includes(id)) persistCheckoutState(id);
   if ($('#top-notice').classList.contains('on')) promoteNotice();
 }
 function closeSheet(id) {
@@ -1823,8 +1826,8 @@ $('#wallet-wait-qr').addEventListener('click',()=>{
   }catch(error){notice(error.message || 'Не удалось показать QR-код',true);}
 });
 
-$('#wallet-wait-sheet').addEventListener('cancel',event=>{event.preventDefault();closeTonWaiting();});
-$('#wallet-wait-sheet').addEventListener('click',event=>{if(clickedOutside(event,$('#wallet-wait-sheet')))closeTonWaiting();});
+$('#wallet-wait-sheet').addEventListener('cancel',event=>{event.preventDefault();openConfirmation('wallet-wait-sheet');});
+$('#wallet-wait-sheet').addEventListener('click',event=>{if(clickedOutside(event,$('#wallet-wait-sheet')))openConfirmation('wallet-wait-sheet');});
 if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange',()=>{if(tonWaiting) document.hidden ? stopTonPolling() : startTonPolling();});
 window.addEventListener?.('pagehide',stopTonPolling);
 window.addEventListener?.('pageshow',()=>{if(tonWaiting)startTonPolling();});
@@ -1996,7 +1999,7 @@ $('#transfer-amount').addEventListener('click',async()=>{if(!evmQuote)return;try
 $('#transfer-comment').addEventListener('click',async()=>{if(evmQuote?.currency!=='GRAM')return;try{await navigator.clipboard.writeText(evmQuote.comment);notice('Комментарий скопирован');}catch{notice('Не удалось скопировать комментарий',true);}});
 // CryptoBot integration: the Worker alone stores Crypto Pay credentials.
 const CRYPTO_WORKER_URL = 'https://shrill-salad-0763.dpl-payments.workers.dev/';
-const CRYPTO_SUPPORTED = new Set(['GRAM','BTC','ETH','BNB']);
+const CRYPTO_SUPPORTED = new Set(['USDT','GRAM','BTC','ETH','BNB']);
 const cryptoApiAsset = ticker => ticker === 'GRAM' ? 'TON' : ticker;
 let cryptoInvoice = null;
 let cryptoRequestBusy = false;
@@ -2038,13 +2041,19 @@ function getCheckoutRubAmount() {
   if (!checkoutOrder || checkoutOrder.status !== 'pending') throw new Error('Счёт недоступен для оплаты');
   return Number(checkoutOrder.amount).toFixed(2);
 }
+function cryptoStorageKey(order = checkoutOrder?.id, ticker = detail) { return 'plata_crypto_invoice_' + order + '_' + ticker; }
 function saveCryptoInvoice() {
-  try { if (cryptoInvoice) sessionStorage.setItem('plata_crypto_invoice', JSON.stringify(cryptoInvoice)); else sessionStorage.removeItem('plata_crypto_invoice'); } catch (_) {}
+  try { if (cryptoInvoice) localStorage.setItem(cryptoStorageKey(cryptoInvoice.order,cryptoInvoice.ticker), JSON.stringify(cryptoInvoice)); } catch (_) {}
 }
 function restoreCryptoInvoice() {
   try {
-    const saved = JSON.parse(sessionStorage.getItem('plata_crypto_invoice') || 'null');
-    if (saved && Number.isSafeInteger(saved.id) && /^https:\/\//.test(saved.url) && saved.ticket && saved.order && saved.ticker && saved.amount) return saved;
+    const text = localStorage.getItem(cryptoStorageKey()) || sessionStorage.getItem('plata_crypto_invoice');
+    if (!text || text.length > 8192) return null;
+    const saved = JSON.parse(text), url = new URL(saved?.url);
+    if (saved && saved.order === checkoutOrder?.id && saved.ticker === detail && CRYPTO_SUPPORTED.has(saved.ticker) && saved.amount === Number(checkoutOrder.amount).toFixed(2) && Number.isSafeInteger(saved.id) && saved.id > 0 && url.protocol === 'https:' && ['t.me','pay.crypt.bot'].includes(url.hostname) && !url.username && !url.password && typeof saved.ticket === 'string' && saved.ticket.length <= 3000 && saved.status === 'active') {
+      localStorage.setItem(cryptoStorageKey(),JSON.stringify(saved));
+      return saved;
+    }
   } catch (_) {}
   return null;
 }
@@ -2081,7 +2090,7 @@ async function startCryptoPayment() {
   // Reuse an existing active invoice for the same order, asset and amount.
   const order = checkoutOrder?.id || '';
   const amount = getCheckoutRubAmount();
-  const existing = cryptoInvoice || restoreCryptoInvoice();
+  const existing = cryptoInvoice?.order === order && cryptoInvoice?.ticker === detail ? cryptoInvoice : restoreCryptoInvoice();
   if (existing && existing.order === order && existing.ticker === detail &&
       existing.amount === amount && existing.status === 'active') {
     cryptoInvoice = existing;
@@ -2170,6 +2179,7 @@ function showSuccess() {
   } catch (_) { topNotice.style.display = 'none'; }
   $('#page').style.display = 'none';
   $('#paid-screen').hidden = false;
+  clearCheckoutState();
 }
 function reset() {
   tonWaiting = false; stopTonPolling();
@@ -2189,6 +2199,7 @@ function reset() {
   $('#page').classList.add('revealed');
   $('#btn-check').disabled = false;
   $('#btn-check-transfer').disabled = false;
+  persistCheckoutState();
 }
 async function beginVerification() {
   if (selected === 'keeper') return checkTonPayment(true);
@@ -2241,6 +2252,7 @@ $('#btn-check-transfer').addEventListener('click', beginVerification);
 function openConfirmation(origin) {
   if (phase !== 'waiting') return;
   previousSheet = origin;
+  if (origin === 'wallet-wait-sheet') stopTonPolling();
   closeSheet(origin);
   openSheet('confirm-sheet');
 }
@@ -2270,7 +2282,10 @@ function restoreFromConfirmation() {
   closeSheet('confirm-sheet');
   const origin = previousSheet;
   previousSheet = null;
-  if (origin && phase === 'waiting') openSheet(origin);
+  if (origin && phase === 'waiting') {
+    openSheet(origin);
+    if (origin === 'wallet-wait-sheet') startTonPolling();
+  }
 }
 $('#btn-back-op').addEventListener('click', restoreFromConfirmation);
 $('#btn-cancel-op').addEventListener('click', () => {
@@ -2393,6 +2408,66 @@ $('#support').addEventListener('click', () => { if (SUPPORT_URL) window.location
 $('#success-reset').hidden = false;
 
 
+/* CHECKOUT PERSISTENCE START */
+let restoringCheckoutState = false;
+function checkoutStateKey() { return 'plata_checkout_v1_' + checkoutOrder?.id; }
+function clearCheckoutState() { try { localStorage.removeItem(checkoutStateKey()); } catch (_) {} }
+function persistCheckoutState(view) {
+ if (restoringCheckoutState || !checkoutOrder || checkoutOrder.status !== 'pending') return;
+ try {
+  if (phase !== 'waiting' && phase !== 'verifying') view = null;
+  else if (view === 'confirm-sheet') view = previousSheet;
+  else if (!view) view = ['wallet-wait-sheet','transfer-sheet','action-sheet'].find(id => $('#'+id).open) || previousSheet || null;
+  localStorage.setItem(checkoutStateKey(),JSON.stringify({v:1,id:checkoutOrder.id,amount:checkoutOrder.amount,savedAt:Date.now(),selected,detail,email:$('#email').value,view,
+   evmQuote:evmQuote?.id === checkoutOrder.id ? evmQuote : null,
+   qr:!$('#keeper-qr').hidden,hash:$('#evm-tx-hash').value || ''}));
+ } catch (_) {}
+}
+async function restoreCheckoutState() {
+ if (!checkoutOrder || checkoutOrder.status !== 'pending') return;
+ try {
+  const text = localStorage.getItem(checkoutStateKey());
+  if (!text || text.length > 16384) return;
+  const saved = JSON.parse(text);
+  if (saved?.v !== 1 || saved.id !== checkoutOrder.id || saved.amount !== checkoutOrder.amount || !Number.isFinite(saved.savedAt) || Date.now()-saved.savedAt > 86400000 || saved.savedAt > Date.now()+30000 || !['cryptobot','keeper','gram','ethereum','bnb','trust'].includes(saved.selected)) return;
+  restoringCheckoutState = true;
+  selectMethod(saved.selected);
+  if ((currencyOptions[selected] || []).some(([symbol])=>symbol === saved.detail)) {
+   detail = saved.detail; $('#selected-currency').value = detail; renderDetail();
+  }
+  if (typeof saved.email === 'string' && saved.email.length <= 254) $('#email').value = saved.email;
+  if (/^0x[a-f0-9]{64}$/i.test(saved.hash || '')) $('#evm-tx-hash').value = saved.hash;
+  if (!['wallet-wait-sheet','transfer-sheet','action-sheet'].includes(saved.view)) { persistCheckoutState(); return; }
+  if (selected === 'cryptobot') {
+   cryptoInvoice = restoreCryptoInvoice();
+   if (!cryptoInvoice) return;
+   phase = 'waiting'; showPaymentSheet();
+  } else if (selected === 'keeper' || selected === 'gram') {
+   const restored = window.PlataGramPayment.restore(checkoutOrder.id);
+   if (!restored || restored.quote.valid_until <= Date.now()/1000+15) return;
+   tonQuote = restored.quote; tonSent = true;
+   if (selected === 'keeper') {
+    tonPrepared = await window.PlataGramPayment.prepare(checkoutOrder.id,tonQuote.quote_id);
+    phase = 'waiting'; showTonWaiting();
+    if (saved.qr) $('#wallet-wait-qr').click();
+   } else {
+    const q = restored.quote;
+    evmQuote = {id:checkoutOrder.id,currency:'GRAM',recipient:q.recipient,amount:q.gram_amount,comment:q.comment,valid_until:q.valid_until,payment_uri:'ton://transfer/'+q.recipient+'?'+new URLSearchParams({amount:q.nano_amount,text:q.comment,exp:String(q.valid_until)})};
+    phase = 'waiting'; showEvmTransfer();
+   }
+  } else if (selected === 'ethereum' || selected === 'bnb') {
+   evmQuote = window.PlataEvmPayment.restore(checkoutOrder.id,selected === 'ethereum' ? 'ETH' : 'BNB',saved.evmQuote,checkoutOrder.amount);
+   if (!evmQuote) return;
+   phase = 'waiting'; showEvmTransfer();
+  }
+ } catch (_) { phase = 'idle'; }
+ finally { restoringCheckoutState = false; }
+}
+window.addEventListener('pagehide',()=>persistCheckoutState());
+$('#email').addEventListener('input',()=>persistCheckoutState());
+$('#evm-tx-hash').addEventListener('input',()=>persistCheckoutState());
+/* CHECKOUT PERSISTENCE END */
+
 /* CHECKOUT BOOTSTRAP START */
 const ORDER_READER_URL = 'https://plata-order-reader.dpl-payments.workers.dev/';
 const CHECKOUT_ID = /^[a-z0-9]{4}(?:-[a-z0-9]{4}){3}$/;
@@ -2481,7 +2556,7 @@ async function bootCheckout() {
   $('#notfound-screen').hidden = true;
   if (checkoutOrder.status === 'paid') { phase = 'verifying'; showSuccess(); }
   else if (checkoutOrder.status !== 'pending') { showCheckoutError(checkoutOrder.status === 'expired' ? 'Срок действия счёта истёк' : 'Счёт отменён', false); }
-  else { $('#page').style.display = ''; $('#page').classList.add('revealed'); }
+  else { $('#page').style.display = ''; $('#page').classList.add('revealed'); await restoreCheckoutState(); }
  } catch {
   if (version === checkoutBootVersion) { controller.abort(); checkoutOrder = null; openSheet('vpn-sheet'); }
  } finally {

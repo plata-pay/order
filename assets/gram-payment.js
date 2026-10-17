@@ -6,6 +6,7 @@
  const INDEX='https://toncenter.com/api/v3/';
  const ID=/^[a-z0-9]{4}(?:-[a-z0-9]{4}){3}$/;
  const quotes=new Map(),candidates=new Map(),historyRound=new Map();
+ function savedItem(key){try{const current=localStorage.getItem(key);if(current!==null)return current;}catch{}try{const previous=sessionStorage.getItem(key);if(previous!==null){try{localStorage.setItem(key,previous);sessionStorage.removeItem(key);}catch{}return previous;}}catch{}return null;}
  const errors={'Exchange rate is unavailable':'Не удалось получить курс GRAM. Повторите попытку.','Order is no longer payable':'Срок действия заказа истёк','The receiving wallet must be activated before accepting payments':'Кошелёк получателя ещё не активирован'};
  const raw=value=>typeof value==='string'&&/^(?:0|-1):[a-f0-9]{64}$/i.test(value)?value.toLowerCase():null;
  function hash(value){if(typeof value!=='string')return null;if(/^[a-f0-9]{64}$/i.test(value))return value.toLowerCase();try{const s=atob(value.replace(/-/g,'+').replace(/_/g,'/'));return s.length===32?Array.from(s,c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join(''):null;}catch{return null;}}
@@ -58,7 +59,7 @@
   },
   async serverStatus(id,{signal}={}){
    if(!ID.test(id))throw new Error('Некорректный ID');
-   let history=[];try{history=JSON.parse(sessionStorage.getItem('plata_gram_history_'+id)||'[]');}catch{}
+   let history=[];try{history=JSON.parse(savedItem('plata_gram_history_'+id)||'[]');}catch{}
    const current=quotes.get(id);if(current)history=[current,...history.filter(q=>q.quote_id!==current.quote_id)];
    history=history.filter(q=>q.order_id===id&&q.created_at>Date.now()/1000-86400).slice(0,5);
    if(!history.length)throw new Error('Сначала откройте реквизиты платежа');
@@ -66,9 +67,9 @@
    const result=await request(MAIN+'/check',{id,ticket:q.ticket},signal);return result.status==='paid'?'paid':result.status==='confirming'?'confirming':'pending';
   },
   save(id,value){if(value?.quote)quotes.set(id,quote(value.quote,id));try{
-   if(value){sessionStorage.setItem('plata_gram_browser_'+id,JSON.stringify(value));let history=JSON.parse(sessionStorage.getItem('plata_gram_history_'+id)||'[]');history=[value.quote,...history.filter(q=>q.quote_id!==value.quote.quote_id&&q.created_at>Date.now()/1000-86400)].slice(0,5);sessionStorage.setItem('plata_gram_history_'+id,JSON.stringify(history));}
-   else {sessionStorage.removeItem('plata_gram_browser_'+id);sessionStorage.removeItem('plata_gram_history_'+id);quotes.delete(id);historyRound.delete(id);}
+   if(value){localStorage.setItem('plata_gram_browser_'+id,JSON.stringify(value));let history=JSON.parse(savedItem('plata_gram_history_'+id)||'[]');history=[value.quote,...history.filter(q=>q.quote_id!==value.quote.quote_id&&q.created_at>Date.now()/1000-86400)].slice(0,5);localStorage.setItem('plata_gram_history_'+id,JSON.stringify(history));}
+   else {localStorage.removeItem('plata_gram_browser_'+id);localStorage.removeItem('plata_gram_history_'+id);try{sessionStorage.removeItem('plata_gram_browser_'+id);sessionStorage.removeItem('plata_gram_history_'+id);}catch{}quotes.delete(id);historyRound.delete(id);}
   }catch{}},
-  restore(id){try{const saved=JSON.parse(sessionStorage.getItem('plata_gram_browser_'+id)||'null');if(saved?.sent===true){const q=quote(saved.quote,id);quotes.set(id,q);return {sent:true,quote:q};}}catch{}return null;}
+  restore(id){try{const saved=JSON.parse(savedItem('plata_gram_browser_'+id)||'null');if(saved?.sent===true){const q=quote(saved.quote,id);quotes.set(id,q);return {sent:true,quote:q};}}catch{}return null;}
  });
 })();

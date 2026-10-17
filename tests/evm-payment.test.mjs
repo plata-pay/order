@@ -24,7 +24,7 @@ assert.throws(()=>api.qr('ton://transfer/'+gram.recipient+'?amount=8000001'));pa
 flow.selected='gram';flow.phase='idle';let saved=false,checked=false;flow.window.PlataGramPayment={restore:()=>null,quote:async()=>gram,save(){saved=true;},serverStatus:async()=>{checked=true;return 'pending';}};
 await flow.api.startGramTransfer();assert.equal(saved,true);assert.equal(node('#transfer-comment-text').textContent,gram.comment);assert.equal(node('#transfer-comment-row').hidden,false);assert.equal(node('#transfer-hash-entry').hidden,true);assert.equal(node('#transfer-amount-text').textContent,gram.gram_amount+' GRAM');assert.equal(node('#btn-check-transfer').disabled,false);passed++;
 await flow.api.checkEvmPayment();assert.equal(checked,true);assert.equal(events.at(-1).error,true);assert.ok(!events.includes('open:action-sheet'));passed++;
-assert.ok(!html.includes('data-method="usdt"'));assert.ok(!html.includes("['USDT', 'Tether']"));passed++;
+assert.ok(!html.includes('data-method="usdt"'));assert.ok(html.includes("cryptobot: [['USDT', 'Tether']"));passed++;
 flow.selected='ethereum';flow.phase='idle';await flow.api.startEvmPayment();
 const closeCount=events.filter(e=>e==='close:transfer-sheet').length;
 node('#transfer-hash-entry').listeners.click();assert.equal(events.at(-1),'open:quick-check-sheet');assert.equal(events.filter(e=>e==='close:transfer-sheet').length,closeCount);passed++;
@@ -33,3 +33,10 @@ const txHash='0x'+'a'.repeat(64);node('#evm-tx-hash').value=' '+txHash+' ';await
 node('#evm-tx-hash').value='invalid old hash';await flow.api.checkEvmPayment();assert.equal(checkedHashes.at(-1),'');passed++;
 node('#quick-check-back').listeners.click();assert.ok(events.includes('close:quick-check-sheet'));assert.equal(flow.phase,'waiting');passed++;
 console.log(JSON.stringify({passed,quote_values_validated:true,real_qr_generated:true,direct_transfer_sheet:true,no_intermediate_action_sheet:true,not_found_is_negative:true,real_network:false}));
+
+const persistent={...good,rub_amount:1,valid_until:Math.floor(Date.now()/1000)+600};
+assert.equal(api.restore(good.id,'ETH',persistent,1),persistent);
+assert.equal(api.restore(good.id,'BNB',persistent,1),null);
+assert.equal(api.restore(good.id,'ETH',{...persistent,valid_until:1},1),null);
+assert.equal(api.restore(good.id,'ETH',persistent,2),null);
+console.log(JSON.stringify({persistent_quote_validation:4}));

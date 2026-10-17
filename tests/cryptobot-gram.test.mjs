@@ -12,5 +12,6 @@ vm.createContext(sandbox);vm.runInContext('//'+code+'\nglobalThis.api={cryptoCre
 const invoice=await sandbox.api.cryptoCreateInvoice();assert.equal(calls[0].data.asset,'TON');assert.equal(invoice.ticker,'GRAM');assert.equal(calls[0].data.amount,'1.00');
 sandbox.api.setInvoice(invoice);await sandbox.api.cryptoCheckInvoice();assert.equal(calls[1].data.asset,'TON');assert.equal(calls[1].data.ticket,'server-signed-ticket');assert.equal(invoice.ticker,'GRAM');
 sandbox.detail='BNB';await sandbox.api.cryptoCreateInvoice();assert.equal(calls[2].data.asset,'BNB');
-sandbox.detail='FAKE';await assert.rejects(()=>sandbox.api.cryptoCreateInvoice());assert.equal(calls.length,3);
-console.log(JSON.stringify({passed:4,gram_display_preserved:true,provider_ton_on_create_and_check:true,other_assets_unchanged:true,unsupported_assets_blocked:true}));
+sandbox.detail='USDT';await sandbox.api.cryptoCreateInvoice();assert.equal(calls[3].data.asset,'USDT');
+sandbox.detail='FAKE';await assert.rejects(()=>sandbox.api.cryptoCreateInvoice());assert.equal(calls.length,4);
+console.log(JSON.stringify({passed:5,gram_display_preserved:true,provider_ton_on_create_and_check:true,other_assets_unchanged:true,unsupported_assets_blocked:true}));
