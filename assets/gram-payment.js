@@ -30,11 +30,12 @@
   return tx.emulated===false&&Number.isSafeInteger(tx.mc_block_seqno)&&tx.mc_block_seqno>0&&(tx.finality===undefined||tx.finality==='finalized')&&d?.aborted===false&&d.destroyed!==true&&d.compute_ph?.success===true&&(!d.action||d.action.success===true)&&msg?.bounced===false&&!!raw(msg.source)&&raw(tx.account)===q.raw_recipient&&raw(msg.destination)===q.raw_recipient&&/^\d+$/.test(String(msg.value))&&BigInt(msg.value)>=BigInt(q.nano_amount)&&/^\d+$/.test(String(d.credit_ph?.credit))&&BigInt(d.credit_ph.credit)>=BigInt(q.nano_amount)&&hash(msg.message_content?.hash)===q.body_hash&&Number.isSafeInteger(tx.now)&&tx.now>=q.created_at-30&&tx.now<=q.valid_until+90&&!!hash(tx.hash);
  }catch{return false;}}
  function paymentUrl(q){
-  // A fixed wallet destination; no URI or payment fields supplied by a visitor.
-  const query=new URLSearchParams({amount:q.nano_amount,bin:q.payload,exp:String(q.valid_until)});
-  if(/Android/i.test(navigator.userAgent||'')){const fallback='https://app.tonkeeper.com/transfer/'+q.recipient+'?'+query;return 'intent://transfer/'+q.recipient+'?'+query+'#Intent;scheme=tonkeeper;package=com.ton_keeper;S.browser_fallback_url='+encodeURIComponent(fallback)+';end';}
-  return 'tonkeeper://transfer/'+q.recipient+'?'+query;
+  // Native transfer with a UTF-8 comment, as specified by the wallet API.
+  if(typeof q.comment!=='string'||!/^plata:[a-z0-9]{4}(?:-[a-z0-9]{4}){3}:[a-f0-9]{32}$/.test(q.comment))throw new Error('Некорректный комментарий платежа');
+  const query=new URLSearchParams({amount:q.nano_amount,text:q.comment,exp:String(q.valid_until)});
+  return 'https://app.tonkeeper.com/transfer/'+q.recipient+'?'+query;
  }
+
  window.PlataGramPayment=Object.freeze({
   async quote(id){if(!ID.test(id))throw new Error('Некорректный ID');const result=await request(MAIN+'/quote',{id});if(result.status==='paid')return result;const q=quote(result.quote,id);quotes.set(id,q);candidates.delete(id);return q;},
   async prepare(id,quoteId){const q=quotes.get(id);if(!q||q.quote_id!==quoteId||q.valid_until<=Date.now()/1000+15)throw Object.assign(new Error('Курс истёк'),{status:409});return {quote:q,url:paymentUrl(q)};},
@@ -55,14 +56,14 @@
    const confirmed=await request(MAIN+'/confirm',{id,ticket:q.ticket,hash:candidate},signal);
    return confirmed.status==='paid'?'paid':'confirming';
   },
-  async serverStatus(id){
+  async serverStatus(id,{signal}={}){
    if(!ID.test(id))throw new Error('Некорректный ID');
    let history=[];try{history=JSON.parse(sessionStorage.getItem('plata_gram_history_'+id)||'[]');}catch{}
    const current=quotes.get(id);if(current)history=[current,...history.filter(q=>q.quote_id!==current.quote_id)];
    history=history.filter(q=>q.order_id===id&&q.created_at>Date.now()/1000-86400).slice(0,5);
    if(!history.length)throw new Error('Сначала откройте реквизиты платежа');
    const round=historyRound.get(id)||0,q=quote(history[round%history.length],id);historyRound.set(id,round+1);
-   const result=await request(MAIN+'/check',{id,ticket:q.ticket});return result.status==='paid'?'paid':result.status==='confirming'?'confirming':'pending';
+   const result=await request(MAIN+'/check',{id,ticket:q.ticket},signal);return result.status==='paid'?'paid':result.status==='confirming'?'confirming':'pending';
   },
   save(id,value){if(value?.quote)quotes.set(id,quote(value.quote,id));try{
    if(value){sessionStorage.setItem('plata_gram_browser_'+id,JSON.stringify(value));let history=JSON.parse(sessionStorage.getItem('plata_gram_history_'+id)||'[]');history=[value.quote,...history.filter(q=>q.quote_id!==value.quote.quote_id&&q.created_at>Date.now()/1000-86400)].slice(0,5);sessionStorage.setItem('plata_gram_history_'+id,JSON.stringify(history));}

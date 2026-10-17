@@ -15,7 +15,7 @@ assert.equal(redirect('/other/'+id).target,null);passed++;
 const nodes=new Map();
 function $(key){if(!nodes.has(key))nodes.set(key,{style:{},classList:{add(){}},hidden:false,disabled:false,textContent:'',addEventListener(){},remove(){}});return nodes.get(key);}
 let replaced=null,calls=[],paidScreens=0,clock=0;
-const sandbox={URL,AbortController,Intl,setTimeout,clearTimeout,encodeURIComponent,console,document:{title:''},Date:{now:()=>clock+=2500},window:{location:{href:'https://plata-pay.github.io/order/'+id},history:{replaceState:(_a,_b,v)=>replaced=v}},$,showSuccess(){paidScreens++;},phase:'idle',checkoutOrder:null,fetch:async(url,options)=>{calls.push({url,options});return Response.json({id,amount:150.25,status:'pending'});}};
+const sandbox={URL,AbortController,Intl,setTimeout,clearTimeout,encodeURIComponent,console,document:{title:''},Date:{now:()=>clock+=2500},window:{location:{href:'https://plata-pay.github.io/order/'+id},history:{replaceState:(_a,_b,v)=>replaced=v}},$,showSuccess(){paidScreens++;},phase:'idle',checkoutOrder:null,openSheet(){},closeSheet(){},fetch:async(url,options)=>{calls.push({url,options});return Response.json({id,amount:150.25,status:'pending'});}};
 vm.createContext(sandbox);
 let code=html.split('/* CHECKOUT BOOTSTRAP START */')[1].split('/* CHECKOUT BOOTSTRAP END */')[0];
 code=code.replace('\nbootCheckout();','\n');
